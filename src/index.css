@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  @keyframes scan-y {
+    0% { top: 0%; opacity: 0; }
+    5% { opacity: 1; }
+    95% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+  }
+}
+
+@layer base {
+  body {
+    background-color: #050505;
+    color: #ffffff;
+    font-family: var(--font-sans);
+  }
+}
+
+@layer components {
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 68, 68, 0.1);
+    border-radius: 12px;
+  }
+
+  .stat-card {
+    background: #0d0d0d;
+    border: 1px solid #1a1a1a;
+    padding: 1.5rem;
+    border-radius: 8px;
+  }
+
+  .neon-glow {
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.2);
+  }
+
+  .animate-scan-y {
+    animation: scan-y 2s linear infinite;
+  }
+
+  .btn-primary {
+    background: #ef4444;
+    color: #ffffff;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+  }
+
+  .btn-primary:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  }
+
+  .btn-outline {
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+  }
+
+  .btn-outline:hover {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: #ef4444;
+  }
+}

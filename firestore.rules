@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+
+    function isValidSignal(data, isCreate) {
+      return data.keys().hasAll(['pair', 'expiry', 'durationMinutes', 'type', 'status', 'createdAt', 'authorId']) &&
+             data.keys().size() >= 7 && data.keys().size() <= 9 &&
+             data.pair is string && data.pair.size() <= 20 &&
+             (!('direction' in data) || (data.direction in ['CALL', 'PUT'])) &&
+             (!('entryPrice' in data) || (data.entryPrice is string && data.entryPrice.size() <= 20)) &&
+             data.expiry is timestamp &&
+             data.durationMinutes is int &&
+             data.type in ['public', 'vip'] &&
+             data.status in ['pending', 'active', 'win', 'loss', 'expired'] &&
+             (isCreate ? data.createdAt == request.time : data.createdAt == resource.data.createdAt) &&
+             data.authorId == request.auth.uid;
+    }
+
+    // --- Collection Rules ---
+
+    match /signals/{signalId} {
+      // Public signals can be listed by anyone.
+      // VIP signals can only be listed by admins or authenticated users (who will then be filtered in 'get')
+      allow list: if resource.data.type == 'public' || isSignedIn(); 
+      allow get: if resource.data.type == 'public' || 
+                 (isSignedIn() && (
+                   isAdmin() || 
+                   exists(/databases/$(database)/documents/vips/$(request.auth.uid))
+                 ));
+      
+      allow create: if isAdmin() && 
+                    isValidId(signalId) && 
+                    isValidSignal(incoming(), true);
+      
+      allow update: if isAdmin() && 
+                    isValidSignal(incoming(), false) && (
+                      incoming().diff(existing()).affectedKeys().hasOnly(['status', 'direction', 'pair', 'entryPrice', 'expiry'])
+                    );
+                    
+      allow delete: if isAdmin();
+    }
+
+    match /vips/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      // Allow bootstrapping and idempotency
+      allow create, update: if isSignedIn() && 
+                    request.auth.token.email == "mehaalkhan.2@gmail.com" && 
+                    request.auth.token.email_verified == true &&
+                    adminId == request.auth.uid;
+      allow delete: if false; 
+    }
+
+    match /bot_access/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    match /bot_activations/{activationId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && incoming().status == 'verifying';
+      allow update, delete: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

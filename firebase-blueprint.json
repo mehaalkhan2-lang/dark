@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "Signal": {
+      "title": "Signal",
+      "description": "A binary trading signal.",
+      "type": "object",
+      "properties": {
+        "pair": { "type": "string", "description": "Trading pair (e.g. EUR/USD)." },
+        "direction": { "type": "string", "enum": ["CALL", "PUT"], "description": "Trade direction." },
+        "entryPrice": { "type": "string", "description": "Price at entry." },
+        "expiry": { "type": "string", "format": "date-time", "description": "Signal expiration time." },
+        "durationMinutes": { "type": "integer", "description": "Intended duration of the trade." },
+        "type": { "type": "string", "enum": ["public", "vip"], "description": "Access level of the signal." },
+        "status": { "type": "string", "enum": ["pending", "active", "win", "loss", "expired"], "description": "Outcome of the signal." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp." },
+        "authorId": { "type": "string", "description": "UID of the admin who created the signal." }
+      },
+      "required": ["pair", "expiry", "durationMinutes", "type", "status", "createdAt", "authorId"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile information.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "vip": { "type": "boolean", "description": "Whether the user has VIP access." }
+      },
+      "required": ["email", "vip"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "System administrator profile.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "uid": { "type": "string" }
+      },
+      "required": ["email", "uid"]
+    },
+    "BotActivation": {
+      "title": "Bot Activation",
+      "description": "A record of an attempt to activate the bot.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "method": { "type": "string" },
+        "recipient": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["verifying", "approved", "rejected"] }
+      },
+      "required": ["userId", "userEmail", "amount", "currency", "method", "recipient", "timestamp", "status"]
+    },
+    "BotAccess": {
+      "title": "Bot Access",
+      "description": "Whether a user has access to the bot.",
+      "type": "object",
+      "properties": {
+        "granted": { "type": "boolean" },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["granted", "grantedAt"]
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A user testimonial or profit proof.",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "comment": { "type": "string" },
+        "profitAmount": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["username", "imageUrl", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "User testimonials and profit proofs."
+    },
+    "/signals/{signalId}": {
+      "schema": "Signal",
+      "description": "Collection of trading signals."
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Authorized administrators."
+    },
+    "/vips/{userId}": {
+      "schema": "User",
+      "description": "VIP access records."
+    },
+    "/bot_activations/{activationId}": {
+      "schema": "BotActivation",
+      "description": "Pending purchase proofs for the bot."
+    },
+    "/bot_access/{userId}": {
+      "schema": "BotAccess",
+      "description": "Granted bot licenses."
+    }
+  }
+}
