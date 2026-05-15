@@ -34,7 +34,7 @@ export function useNotifications(signals: Signal[]) {
         if (Notification.permission === 'granted') {
           new Notification(`NEW SIGNAL: ${newSignal.pair}`, {
             body: `${newSignal.type.toUpperCase()} | ${newSignal.status.toUpperCase()} | Duration: ${newSignal.durationMinutes}m`,
-            icon: 'https://cdn-icons-png.flaticon.com/512/3233/3233483.png'
+            icon: 'https://cdn-icons-png.flaticon.com/512/2922/2922561.png'
           });
         }
       }

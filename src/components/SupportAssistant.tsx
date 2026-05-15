@@ -55,7 +55,12 @@ export default function SupportAssistant() {
     setIsTyping(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("API_KEY_MISSING");
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
       
       const chat = ai.chats.create({
         model: "gemini-3-flash-preview",
@@ -71,10 +76,14 @@ export default function SupportAssistant() {
           Tone: Professional, helpful, concise, slightly aggressive/technical "Dark" aesthetic.
           Keep responses short and focused on binary options trading within our platform.`,
         },
+        history: messages.slice(1).map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.content }]
+        }))
       });
 
-      const result = await chat.sendMessage({ message: content });
-      const text = result.text || "I couldn't process that request.";
+      const response = await chat.sendMessage({ message: content });
+      const text = response.text || "I couldn't process that request. Neural interface timeout.";
 
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -82,12 +91,27 @@ export default function SupportAssistant() {
         content: text,
         timestamp: Date.now()
       }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Support Bot Error:', error);
+      let errorMessage = "I'm having trouble connecting to the neural network. Please check your connection or try again later.";
+      
+      const errorStr = error?.message || String(error);
+
+      if (error?.message === "API_KEY_MISSING") {
+        errorMessage = "System Error: Gemini API Key is missing. Please select a key in the Settings > Secrets panel to activate the AI Assistant.";
+      } else if (errorStr.includes('403') || errorStr.toLowerCase().includes('permission denied')) {
+        errorMessage = "Access Denied: Please check your API key permissions in the Settings > Secrets panel.";
+      } else if (errorStr.includes('429') || errorStr.toLowerCase().includes('quota')) {
+        errorMessage = "System Overloaded: Too many requests. Please try again in a few seconds.";
+      } else {
+        // Log more info for debugging (visible to user in error msg for now)
+        errorMessage = `Neural interface error: ${errorStr.substring(0, 100)}`;
+      }
+
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "I'm having trouble connecting to the neural network. Please check your connection or try again later.",
+        content: errorMessage,
         timestamp: Date.now()
       }]);
     } finally {
