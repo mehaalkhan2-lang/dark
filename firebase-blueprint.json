@@ -75,6 +75,18 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["username", "imageUrl", "createdAt"]
+    },
+    "TradingSession": {
+      "title": "Trading Session",
+      "description": "The current global trading status.",
+      "type": "object",
+      "properties": {
+        "isActive": { "type": "boolean" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "closedAt": { "type": "string", "format": "date-time" },
+        "lastStatus": { "type": "string" }
+      },
+      "required": ["isActive"]
     }
   },
   "firestore": {
@@ -101,6 +113,10 @@
     "/bot_access/{userId}": {
       "schema": "BotAccess",
       "description": "Granted bot licenses."
+    },
+    "/system/trading_session": {
+      "schema": "TradingSession",
+      "description": "Global session state tracking."
     }
   }
 }

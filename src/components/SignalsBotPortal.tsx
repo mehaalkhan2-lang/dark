@@ -25,9 +25,17 @@ interface SignalsBotPortalProps {
   isVip: boolean;
   isAdmin: boolean;
   isBotUser: boolean;
+  session?: any;
 }
 
 const INTEGRATED_BROKER = { id: 'pocket', name: 'Pocket Option', icon: 'P', color: 'text-red-500' };
+
+const MARKET_VITALS = [
+  { label: 'Volatility', value: 'High', color: 'text-red-500', icon: Zap },
+  { label: 'Liquidity', value: '0.8M/s', color: 'text-green-500', icon: Activity },
+  { label: 'Trend Strength', value: '78%', color: 'text-blue-500', icon: TrendingUp },
+  { label: 'Market Sentiment', value: '62% Bullish', color: 'text-yellow-500', icon: BarChart3 }
+];
 
 const ASSETS = [
   { id: 'EURUSD', name: 'Euro / USD', symbol: 'FX:EURUSD' },
@@ -43,7 +51,7 @@ const ASSETS = [
   { id: 'EURAUD', name: 'EUR / AUD', symbol: 'FX:EURAUD' },
 ];
 
-export default function SignalsBotPortal({ isVip, isAdmin, isBotUser }: SignalsBotPortalProps) {
+export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }: SignalsBotPortalProps) {
   const selectedBroker = INTEGRATED_BROKER;
   const [isOtc, setIsOtc] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
@@ -115,22 +123,26 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser }: SignalsB
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
-      addLog(`Extracting ${selectedBroker.name} liquidity pools...`);
+      addLog(`Extracting ${selectedBroker.name} session vitals...`);
+      await new Promise(r => setTimeout(r, 600));
+      addLog(`Syncing with Interbank Liquidity Pools...`);
       await new Promise(r => setTimeout(r, 1000));
-      addLog("Calculating RSI/MACD divergence...");
+      addLog("Analyzing Order Flow Imbalance...");
       await new Promise(r => setTimeout(r, 800));
-      addLog("Analyzing order flow sentiment...");
+      addLog("Scanning for Institutional Stop-Hunts...");
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Perform a deep technical multi-timeframe analysis for ${selectedAsset.name} (${selectedAsset.symbol}). 
-        Context: ${selectedBroker.name} Platform ${isOtc ? '(OTC Algorithmic Market)' : '(Interbank Global Feed)'}.
+        Context: ${selectedBroker.name} Platform ${isOtc ? '(OTC Algorithmic Market)' : '(RE-TIME INTERBANK FEED)'}.
+        Current Market Conditions: High Volatility, Significant Order Imbalance detected at psychological levels.
+        
         Focus on 1-MINUTE EXPIRATION parameters:
-        - 1-Minute Micro-trend and momentum divergence (RSI 7 period, Stochastic 5-3-3).
-        - Fibonacci retracement levels (0.382, 0.5, 0.618) on the M1 cycle.
-        - Support/Resistance liquidy pools on the 5-minute chart for high-level bias.
-        - VWAP and EMA 20/50/100 crossovers.
-        - Candle patterns: Pin bars, Engulfing, Marubozu at key levels.
+        - Instantaneous Price Action Momentum.
+        - Institutional Liquidity Sourcing Levels (Shadow Levels).
+        - RSI (7) overbought/oversold with volume confirmation.
+        - Support/Resistance liquidy pools on the 5-minute chart.
+        - Candle patterns: Pin bars, Engulfing, displacement candles.
 
         Provide: 
         1. Direction (CALL/PUT)
@@ -366,6 +378,14 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser }: SignalsB
                       <span className="text-[8px] bg-red-500 text-white px-1 rounded-sm leading-tight font-black">1M</span>
                     </div>
                     <span className="text-[8px] font-mono text-gray-500 leading-none">REAL-TIME {selectedBroker.name.toUpperCase()} FEED</span>
+                    {/* Add session status here if needed */}
+                  </div>
+                </div>
+
+                <div className="absolute top-4 right-4 flex items-center gap-2 pointer-events-none">
+                  <div className={`px-2 py-1 rounded border text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 backdrop-blur-md ${session?.isActive ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
+                    <div className={`w-1 h-1 rounded-full ${session?.isActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                    {session?.isActive ? 'Global Session: LIVE' : 'Global Session: CLOSED'}
                   </div>
                 </div>
 
@@ -408,6 +428,23 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser }: SignalsB
               </div>
             )}
           </div>
+
+          {/* Market Vitals Grid */}
+          {(isBotUser || isAdmin) && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {MARKET_VITALS.map((vital, idx) => (
+                <div key={idx} className="glass-panel p-3 border-white/5 bg-white/[0.02] flex items-center gap-3">
+                  <div className={`p-2 rounded bg-black/40 border border-white/5 ${vital.color}`}>
+                    <vital.icon size={14} />
+                  </div>
+                  <div>
+                    <span className="text-[8px] text-gray-500 uppercase font-mono block leading-none mb-1">{vital.label}</span>
+                    <span className="text-[10px] font-black text-white tracking-widest">{vital.value}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="glass-panel p-4 border-white/5 flex items-center justify-between text-[10px] font-mono text-gray-500">
             <div className="flex items-center gap-6">

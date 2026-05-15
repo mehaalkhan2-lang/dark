@@ -48,7 +48,29 @@ service cloud.firestore {
              data.authorId == request.auth.uid;
     }
 
+    function isValidReview(data) {
+      return data.keys().hasAll(['username', 'imageUrl', 'createdAt']) &&
+             data.username is string && data.username.size() <= 50 &&
+             data.imageUrl is string && data.imageUrl.size() <= 1000 &&
+             (!('comment' in data) || (data.comment is string && data.comment.size() <= 500)) &&
+             (!('profitAmount' in data) || (data.profitAmount is string && data.profitAmount.size() <= 50)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['isActive']) &&
+             data.isActive is bool &&
+             (!('startedAt' in data) || (data.startedAt is timestamp || data.startedAt == null)) &&
+             (!('closedAt' in data) || (data.closedAt is timestamp || data.closedAt == null)) &&
+             (!('lastStatus' in data) || (data.lastStatus is string && data.lastStatus.size() <= 20));
+    }
+
     // --- Collection Rules ---
+
+    match /system/trading_session {
+      allow read: if true;
+      allow write: if isAdmin() && isValidSession(incoming());
+    }
 
     match /signals/{signalId} {
       // Public signals can be listed by anyone.
@@ -105,7 +127,7 @@ service cloud.firestore {
 
     match /reviews/{reviewId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() && isValidReview(incoming());
     }
   }
 }

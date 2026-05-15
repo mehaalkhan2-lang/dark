@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { Zap, LogOut, User as UserIcon, ShieldCheck, Download } from 'lucide-react';
+import { Zap, LogOut, User as UserIcon, ShieldCheck, Download, Bell, BellOff } from 'lucide-react';
 
 interface NavbarProps {
   user: User | null;
@@ -11,11 +11,15 @@ interface NavbarProps {
   onReviewsClick: () => void;
   isAdmin: boolean;
   isVip: boolean;
+  session?: { isActive: boolean };
 }
 
-export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick, onReviewsClick, isAdmin, isVip }: NavbarProps) {
+export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick, onReviewsClick, isAdmin, isVip, session }: NavbarProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
+    typeof window !== 'undefined' ? Notification.permission : 'default'
+  );
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -44,6 +48,30 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
     setDeferredPrompt(null);
   };
 
+  const requestNotificationPermission = async () => {
+    console.log("Requesting notification permission...");
+    if (!('Notification' in window)) {
+      console.error("This browser does not support notifications.");
+      return;
+    }
+
+    try {
+      // Some browsers require a user gesture, which we have here.
+      const permission = await Notification.requestPermission();
+      console.log("Permission result:", permission);
+      setNotificationPermission(permission);
+      
+      if (permission === 'granted') {
+        new Notification("Alerts Protocol Enabled", {
+          body: "You will now receive notifications for live sessions and new signals.",
+          icon: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png'
+        });
+      }
+    } catch (err) {
+      console.error("Failed to request notification permission:", err);
+    }
+  };
+
   return (
     <nav className="border-b border-white/5 bg-black/50 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -53,15 +81,34 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
           </div>
           <div className="flex flex-col">
             <h1 className="text-xl font-black italic tracking-tighter leading-none mb-0.5">DARK TRADING</h1>
-            <span className="text-[9px] font-mono font-bold tracking-[0.4em] text-red-500 uppercase leading-none">Global Network</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-mono font-bold tracking-[0.4em] text-red-500 uppercase leading-none">Global Network</span>
+              {session?.isActive && (
+                <span className="flex items-center gap-1 bg-green-500/10 text-green-500 border border-green-500/30 px-1 py-0.5 rounded-[2px] text-[7px] font-black uppercase tracking-widest animate-pulse">
+                  <div className="w-1 h-1 rounded-full bg-green-500" />
+                  Live Session
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-4">
             <button 
+              onClick={requestNotificationPermission}
+              className={`p-2 rounded transition-all ${
+                notificationPermission === 'granted' 
+                  ? 'text-green-500 hover:bg-green-500/10' 
+                  : 'text-gray-400 hover:text-white hover:bg-white/5 animate-pulse'
+              }`}
+              title={notificationPermission === 'granted' ? "Alerts Enabled" : "Enable Alerts"}
+            >
+              {notificationPermission === 'granted' ? <Bell size={18} /> : <BellOff size={18} />}
+            </button>
+            <button 
               onClick={handleInstall}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 border border-red-400/30 rounded text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 animate-pulse"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 border border-red-400/30 rounded text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
               title="Download Desktop/Mobile App"
             >
               <Download size={14} />

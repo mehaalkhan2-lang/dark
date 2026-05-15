@@ -26,7 +26,7 @@ import ReviewsSection from './components/ReviewsSection';
 import SupportAssistant from './components/SupportAssistant';
 import { useNotifications } from './hooks/useNotifications';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Zap, AlertCircle, XCircle, User as UserIcon } from 'lucide-react';
+import { Shield, Zap, AlertCircle, XCircle, User as UserIcon, Activity } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -38,8 +38,13 @@ export default function App() {
   const [signals, setSignals] = useState<Signal[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'public' | 'vip' | 'bot' | 'reviews'>('public');
+  const [session, setSession] = useState<any>(null);
+  const [activeNotification, setActiveNotification] = useState<{ title: string; body: string } | null>(null);
 
-  useNotifications(signals);
+  useNotifications(signals, session, (notif) => {
+    setActiveNotification(notif);
+    setTimeout(() => setActiveNotification(null), 5000);
+  });
 
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
@@ -114,6 +119,18 @@ export default function App() {
 
     return () => unsubSignals();
   }, [user, isAdmin, isVip, loading]);
+
+  useEffect(() => {
+    const unsubSession = onSnapshot(doc(db, 'system', 'trading_session'), (snapshot) => {
+      if (snapshot.exists()) {
+        setSession(snapshot.data());
+      } else {
+        setSession({ isActive: false });
+      }
+    });
+
+    return () => unsubSession();
+  }, []);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -208,6 +225,23 @@ export default function App() {
     }
   };
 
+  const handleToggleSignalSession = async () => {
+    if (!isAdmin) return;
+    const path = 'system/trading_session';
+    try {
+      const newStatus = !session?.isActive;
+      await setDoc(doc(db, 'system', 'trading_session'), {
+        isActive: newStatus,
+        startedAt: newStatus ? serverTimestamp() : session?.startedAt,
+        closedAt: newStatus ? null : serverTimestamp(),
+        lastStatus: newStatus ? 'LIVE' : 'CLOSED'
+      }, { merge: true });
+      setError(null);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, path);
+    }
+  };
+
   const handleUpdateStatus = async (id: string, status: Signal['status']) => {
     if (!user || !isAdmin) return;
     const path = `signals/${id}`;
@@ -291,6 +325,7 @@ export default function App() {
         onLogout={logout} 
         isAdmin={isAdmin} 
         isVip={isVip} 
+        session={session}
         onVipClick={() => setActiveTab('vip')}
         onBotClick={() => setActiveTab('bot')}
         onReviewsClick={() => setActiveTab('reviews')}
@@ -312,7 +347,27 @@ export default function App() {
         )}
 
         {isAdmin && (
-          <div className="mb-12">
+          <div className="mb-12 space-y-6">
+            <div className="glass-panel p-6 border-white/5 bg-gradient-to-r from-red-500/5 to-transparent flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${session?.isActive ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
+                  <Activity size={24} className={session?.isActive ? 'animate-pulse' : ''} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-white">Market Protocol</h3>
+                  <p className="text-[10px] font-mono text-gray-500 uppercase">
+                    Status: <span className={session?.isActive ? 'text-green-500' : 'text-red-500'}>{session?.isActive ? 'SESSION LIVE' : 'SESSION CLOSED'}</span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleToggleSignalSession}
+                className={`px-8 py-3 rounded text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl ${session?.isActive ? 'bg-white text-black hover:bg-red-500 hover:text-white' : 'bg-red-600 text-white hover:bg-red-700 shadow-red-500/20'}`}
+              >
+                {session?.isActive ? 'STOP GLOBAL SESSION' : 'START GLOBAL SESSION'}
+              </button>
+            </div>
+
             <AdminSignalForm onAddSignal={handleAddSignal} />
             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-xs flex items-start gap-3">
               <Zap size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
@@ -412,7 +467,7 @@ export default function App() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
               >
-                <SignalsBotPortal isVip={isVip} isAdmin={isAdmin} isBotUser={isBotUser} />
+                <SignalsBotPortal isVip={isVip} isAdmin={isAdmin} isBotUser={isBotUser} session={session} />
               </motion.div>
             ) : activeTab === 'reviews' ? (
               <motion.div
@@ -516,6 +571,35 @@ export default function App() {
       </footer>
 
       <SupportAssistant />
+
+      {/* WhatsApp Style Toast Notification */}
+      <AnimatePresence>
+        {activeNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -100 }}
+            animate={{ opacity: 1, y: 20 }}
+            exit={{ opacity: 0, y: -100 }}
+            className="fixed top-0 left-0 right-0 z-[100] flex justify-center px-4 pointer-events-none"
+          >
+            <div className="bg-[#202c33] border-l-4 border-[#00a884] shadow-2xl rounded-lg p-3 flex items-center gap-4 max-w-md w-full pointer-events-auto border border-white/5">
+              <div className="w-10 h-10 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center flex-shrink-0">
+                <Zap size={20} className="text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-[#00a884] text-[10px] font-black uppercase tracking-widest mb-0.5">Alert Protocol</h4>
+                <p className="text-white text-xs font-bold truncate">{activeNotification.title}</p>
+                <p className="text-gray-400 text-[10px] truncate">{activeNotification.body}</p>
+              </div>
+              <button 
+                onClick={() => setActiveNotification(null)}
+                className="text-gray-500 hover:text-white p-1"
+              >
+                <XCircle size={16} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
