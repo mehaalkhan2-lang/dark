@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { Zap, LogOut, User as UserIcon, ShieldCheck, Download, Bell, BellOff } from 'lucide-react';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 interface NavbarProps {
   user: User | null;
@@ -17,9 +18,7 @@ interface NavbarProps {
 export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick, onReviewsClick, isAdmin, isVip, session }: NavbarProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
-    typeof window !== 'undefined' ? Notification.permission : 'default'
-  );
+  const { permission, requestPermission, token, loading } = usePushNotifications();
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -37,7 +36,7 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
     if (!deferredPrompt) {
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
       if (isIOS) {
-        alert("IPHONE INSTALLATION:\n1. Open this page in Safari\n2. Tap the Share button (square with arrow)\n3. Scroll down and tap 'Add to Home Screen'");
+        alert("IPHONE INSTALLATION:\n1. Open this page in Safari\n2. Tap the Share button\n3. Select 'Add to Home Screen'\n\nThis is REQUIRED for background notifications on iPhone.");
       } else {
         alert("INSTALLATION GUIDE:\n1. Click the Browser Menu (3 dots)\n2. Select 'Install' or 'Add to Home Screen'\n\nThis turns Dark Trading into a fast, standalone app.");
       }
@@ -48,27 +47,22 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
     setDeferredPrompt(null);
   };
 
-  const requestNotificationPermission = async () => {
-    console.log("Requesting notification permission...");
-    if (!('Notification' in window)) {
-      console.error("This browser does not support notifications.");
+  const handleToggleNotifications = async () => {
+    const vapidKey = import.meta.env.VITE_VAPID_KEY;
+    if (!vapidKey) {
+      // Standard local notifications
+      await requestPermission();
       return;
     }
+    
+    // Register for push notifications
+    await requestPermission(vapidKey);
+  };
 
-    try {
-      // Some browsers require a user gesture, which we have here.
-      const permission = await Notification.requestPermission();
-      console.log("Permission result:", permission);
-      setNotificationPermission(permission);
-      
-      if (permission === 'granted') {
-        new Notification("Alerts Protocol Enabled", {
-          body: "You will now receive notifications for live sessions and new signals.",
-          icon: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png'
-        });
-      }
-    } catch (err) {
-      console.error("Failed to request notification permission:", err);
+  const handleCopyToken = () => {
+    if (token) {
+      navigator.clipboard.writeText(token);
+      alert("Push Token Copied! Use this in Firebase Console -> Messaging -> Send Test Message.");
     }
   };
 
@@ -95,17 +89,40 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
 
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={requestNotificationPermission}
-              className={`p-2 rounded transition-all ${
-                notificationPermission === 'granted' 
-                  ? 'text-green-500 hover:bg-green-500/10' 
-                  : 'text-gray-400 hover:text-white hover:bg-white/5 animate-pulse'
-              }`}
-              title={notificationPermission === 'granted' ? "Alerts Enabled" : "Enable Alerts"}
-            >
-              {notificationPermission === 'granted' ? <Bell size={18} /> : <BellOff size={18} />}
-            </button>
+            <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5">
+              <button 
+                onClick={handleToggleNotifications}
+                disabled={loading}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${
+                  loading ? 'opacity-50 cursor-wait' : ''
+                } ${
+                  permission === 'granted' 
+                    ? 'text-green-500 hover:bg-green-500/10' 
+                    : permission === 'denied'
+                      ? 'text-red-500 hover:bg-red-500/10'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5 animate-pulse'
+                }`}
+                title={`Notifications: ${permission.toUpperCase()}`}
+              >
+                {permission === 'granted' ? <Bell size={16} /> : <BellOff size={16} />}
+                <span className="text-[10px] font-black uppercase hidden sm:inline-block">
+                  {permission === 'granted' ? 'Active' : 'Alerts'}
+                </span>
+              </button>
+              {permission === 'granted' && (
+                <button 
+                  onClick={token ? handleCopyToken : handleToggleNotifications}
+                  className={`ml-1 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all border ${
+                    token 
+                      ? 'bg-blue-600 border-blue-400/30 text-white hover:bg-blue-700' 
+                      : 'bg-red-600 border-red-400/30 text-white hover:bg-red-700 animate-bounce'
+                  }`}
+                  title={token ? "Click to copy registration token" : "Token missing - click to retry generation"}
+                >
+                  {token ? 'Copy Token' : 'Get Token'}
+                </button>
+              )}
+            </div>
             <button 
               onClick={handleInstall}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 border border-red-400/30 rounded text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
