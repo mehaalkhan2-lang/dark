@@ -22,16 +22,29 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  const data = event.data?.json() || {
+  let data = {
     title: 'DARK TRADING ALERT',
     body: 'New market activity detected.'
   };
 
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    console.log('Push data is not JSON, using default');
+    if (event.data) {
+      data.body = event.data.text();
+    }
+  }
+
   const options = {
     body: data.body,
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
-    vibrate: [100, 50, 100],
+    icon: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png',
+    badge: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png',
+    vibrate: [200, 100, 200],
+    tag: 'active-signal',
+    renotify: true,
     data: {
       url: self.registration.scope
     }

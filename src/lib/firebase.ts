@@ -50,10 +50,19 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 // Test connection
 async function testConnection() {
   try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
+    console.log('Attempting Firestore connection test...');
+    const connDoc = doc(db, 'system', 'trading_session');
+    await getDocFromServer(connDoc);
+    console.log('Firestore connection test: SUCCESS (or permission denied, which is interactive)');
   } catch (error) {
-    if(error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
+    console.error('Firestore connection test FAILED:', error);
+    if(error instanceof Error) {
+      if (error.message.includes('the client is offline')) {
+        console.error("CRITICAL: Firestore backend unreachable. Check internet or Firebase project state.");
+      }
+      if (error.message.includes('permission-denied')) {
+        console.log("Firestore connection test: Permission Denied (this is expected for guest users)");
+      }
     }
   }
 }
