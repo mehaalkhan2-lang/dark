@@ -20,8 +20,6 @@ import { Signal, TradeDirection } from './types';
 import Navbar from './components/Navbar';
 import AdminSignalForm from './components/AdminSignalForm';
 import SignalCard from './components/SignalCard';
-import SignalsBotPortal from './components/SignalsBotPortal';
-import AdminBrain from './components/AdminBrain';
 import AdminReviewForm from './components/AdminReviewForm';
 import ReviewsSection from './components/ReviewsSection';
 import SupportAssistant from './components/SupportAssistant';
@@ -35,17 +33,14 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVip, setIsVip] = useState(false);
-  const [isBotUser, setIsBotUser] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [pushTokens, setPushTokens] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'public' | 'vip' | 'bot' | 'reviews'>('public');
+  const [activeTab, setActiveTab] = useState<'public' | 'vip' | 'reviews'>('public');
   const [session, setSession] = useState<any>(null);
   const [settings, setSettings] = useState({
-    botPrice: 1000,
-    discountPercentage: 0,
     fakeMemberOffset: 955
   });
   const [activeNotification, setActiveNotification] = useState<{ title: string; body: string } | null>(null);
@@ -61,8 +56,6 @@ export default function App() {
       if (snapshot.exists()) {
         const data = snapshot.data();
         setSettings({
-          botPrice: data.botPrice || 1000,
-          discountPercentage: data.discountPercentage || 0,
           fakeMemberOffset: data.fakeMemberOffset || 955
         });
       }
@@ -90,25 +83,21 @@ export default function App() {
         }
 
         try {
-          const [adminDoc, vipDoc, botDoc] = await Promise.all([
+          const [adminDoc, vipDoc] = await Promise.all([
             getDoc(doc(db, 'admins', u.uid)),
-            getDoc(doc(db, 'vips', u.uid)),
-            getDoc(doc(db, 'bot_access', u.uid))
+            getDoc(doc(db, 'vips', u.uid))
           ]);
           const isUserAdmin = adminDoc.exists() || isDesignatedAdmin;
           setIsAdmin(isUserAdmin);
           setIsVip(isUserAdmin || vipDoc.exists());
-          setIsBotUser(isUserAdmin || botDoc.exists());
         } catch (err) {
           console.error("Access check failed", err);
           setIsAdmin(false);
           setIsVip(false);
-          setIsBotUser(false);
         }
       } else {
         setIsAdmin(false);
         setIsVip(false);
-        setIsBotUser(false);
       }
       setLoading(false);
     });
@@ -451,7 +440,6 @@ export default function App() {
           isVip={isVip} 
           session={session}
           onVipClick={() => setActiveTab('vip')}
-          onBotClick={() => setActiveTab('bot')}
           onReviewsClick={() => setActiveTab('reviews')}
           onDownloadClick={() => setIsInstallGuideOpen(true)}
         />
@@ -496,8 +484,6 @@ export default function App() {
 
           {isAdmin && (
             <div className="mb-12 space-y-6">
-              <AdminBrain />
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="glass-panel p-6 border-white/5 bg-gradient-to-r from-red-500/5 to-transparent flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -520,28 +506,10 @@ export default function App() {
                 </div>
 
                 <div className="glass-panel p-6 border-white/5">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-4">Pricing & Display Control</h3>
-                  <div className="grid grid-cols-3 gap-4">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-4">Display Control</h3>
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <label className="block text-[8px] font-mono text-gray-600 uppercase mb-1">Bot Price (PKR)</label>
-                      <input 
-                        type="number" 
-                        value={settings.botPrice} 
-                        onChange={(e) => handleUpdateSettings({ botPrice: Number(e.target.value) })}
-                        className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[8px] font-mono text-gray-600 uppercase mb-1">Discount %</label>
-                      <input 
-                        type="number" 
-                        value={settings.discountPercentage} 
-                        onChange={(e) => handleUpdateSettings({ discountPercentage: Number(e.target.value) })}
-                        className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs font-mono"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[8px] font-mono text-gray-600 uppercase mb-1">Fake Offset</label>
+                      <label className="block text-[8px] font-mono text-gray-600 uppercase mb-1">Fake Member Offset</label>
                       <input 
                         type="number" 
                         value={settings.fakeMemberOffset} 
@@ -590,12 +558,6 @@ export default function App() {
                   {activeTab === 'vip' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-500 rounded-full" />}
                 </button>
                 <button
-                  onClick={() => setActiveTab('bot')}
-                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative shrink-0 ${activeTab === 'bot' ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
-                >
-                  DARK TRADING BOT
-                </button>
-                <button
                   onClick={() => setActiveTab('reviews')}
                   className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative shrink-0 ${activeTab === 'reviews' ? 'text-green-500' : 'text-gray-500 hover:text-gray-300'}`}
                 >
@@ -641,7 +603,7 @@ export default function App() {
                 </div>
                 <h3 className="text-xl font-bold mb-2 uppercase tracking-wider">Observer Protocol</h3>
                 <p className="text-gray-400 text-sm mb-6">
-                  You are currently in observer mode. Login to receive personalized trade alerts and unlock the Dark Bot.
+                  You are currently in observer mode. Login to receive personalized trade alerts.
                 </p>
                 <button 
                   onClick={login}
@@ -673,22 +635,7 @@ export default function App() {
 
           <div className="space-y-4">
             <AnimatePresence mode="wait">
-              {activeTab === 'bot' ? (
-                <motion.div
-                  key="bot-tab"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                >
-                  <SignalsBotPortal 
-                    isVip={isVip} 
-                    isAdmin={isAdmin} 
-                    isBotUser={isBotUser} 
-                    session={session} 
-                    settings={settings}
-                  />
-                </motion.div>
-              ) : activeTab === 'reviews' ? (
+              {activeTab === 'reviews' ? (
                 <motion.div
                   key="reviews-tab"
                   initial={{ opacity: 0, scale: 0.95 }}

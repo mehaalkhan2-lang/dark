@@ -8,7 +8,6 @@ interface NavbarProps {
   onLogin: () => void;
   onLogout: () => void;
   onVipClick: () => void;
-  onBotClick: () => void;
   onReviewsClick: () => void;
   onDownloadClick: () => void;
   isAdmin: boolean;
@@ -16,7 +15,7 @@ interface NavbarProps {
   session?: { isActive: boolean };
 }
 
-export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick, onReviewsClick, onDownloadClick, isAdmin, isVip, session }: NavbarProps) {
+export default function Navbar({ user, onLogin, onLogout, onVipClick, onReviewsClick, onDownloadClick, isAdmin, isVip, session }: NavbarProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
   const { permission, requestPermission, token, loading } = usePushNotifications();
@@ -161,12 +160,6 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
 
           {user ? (
             <div className="flex items-center gap-4">
-              <button 
-                onClick={onBotClick}
-                className="hidden lg:block px-3 py-1.5 bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-widest rounded hover:bg-red-500 hover:text-white transition-all"
-              >
-                DARK BOT
-              </button>
               {!isVip && !isAdmin && (
                 <button 
                   onClick={onVipClick}
