@@ -10,12 +10,13 @@ interface NavbarProps {
   onVipClick: () => void;
   onBotClick: () => void;
   onReviewsClick: () => void;
+  onDownloadClick: () => void;
   isAdmin: boolean;
   isVip: boolean;
   session?: { isActive: boolean };
 }
 
-export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick, onReviewsClick, isAdmin, isVip, session }: NavbarProps) {
+export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick, onReviewsClick, onDownloadClick, isAdmin, isVip, session }: NavbarProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
   const { permission, requestPermission, token, loading } = usePushNotifications();
@@ -42,9 +43,6 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
   }, []);
 
   const handleInstall = async () => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isAndroid = /Android/.test(navigator.userAgent);
-
     if (deferredPrompt) {
       try {
         deferredPrompt.prompt();
@@ -58,13 +56,7 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
       return;
     }
 
-    if (isIOS) {
-      alert("IPHONE INSTALLATION (Required for Alerts):\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap 'Add to Home Screen'\n3. Name it 'Dark Trading' and tap Add.");
-    } else if (isAndroid) {
-      alert("ANDROID INSTALLATION:\n\n1. Tap the 3-dots menu in Chrome\n2. Select 'Install app' or 'Add to Home Screen'.");
-    } else {
-      alert("DESKTOP INSTALLATION:\n\n1. Click your browser's menu\n2. Select 'Install Dark Trading' or 'Add to Home Screen'.");
-    }
+    onDownloadClick();
   };
 
   const handleToggleNotifications = async () => {

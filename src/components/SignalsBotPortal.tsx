@@ -25,6 +25,10 @@ interface SignalsBotPortalProps {
   isAdmin: boolean;
   isBotUser: boolean;
   session?: any;
+  settings?: {
+    botPrice: number;
+    discountPercentage: number;
+  };
 }
 
 const INTEGRATED_BROKER = { id: 'pocket', name: 'Pocket Option', icon: 'P', color: 'text-red-500' };
@@ -50,8 +54,12 @@ const ASSETS = [
   { id: 'EURAUD', name: 'EUR / AUD', symbol: 'FX:EURAUD' },
 ];
 
-export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }: SignalsBotPortalProps) {
+export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, settings }: SignalsBotPortalProps) {
   const selectedBroker = INTEGRATED_BROKER;
+  const botPrice = settings?.botPrice || 1000;
+  const discount = settings?.discountPercentage || 0;
+  const finalPrice = Math.floor(botPrice * (1 - discount / 100));
+
   const [isOtc, setIsOtc] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [isScanning, setIsScanning] = useState(false);
@@ -191,7 +199,7 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
         addDoc(collection(db, 'bot_activations'), {
           userId: auth.currentUser.uid,
           userEmail: auth.currentUser.email,
-          amount: 1000,
+          amount: finalPrice,
           currency: 'PKR',
           method: 'EasyPaisa',
           recipient: 'Hijran Bano',
@@ -263,7 +271,7 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
               Dark trading bot
               {!isBotUser && !isAdmin && (
                 <span className="flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded border border-yellow-500/20 text-[9px] tracking-widest">
-                  <Shield size={10} /> 1000 PKR
+                  <Shield size={10} /> {discount > 0 && <span className="line-through opacity-50 mr-1">{botPrice}</span>}{finalPrice} PKR
                 </span>
               )}
             </h2>
@@ -306,7 +314,7 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
             ) : (!isBotUser && !isAdmin) ? (
               <>
                 <Shield size={14} />
-                ACTIVATE BOT (1000 PKR)
+                ACTIVATE BOT ({finalPrice} PKR)
               </>
             ) : (
               <>
@@ -374,9 +382,14 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
                   </div>
                 </div>
                 <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-2">Market Scanner Locked</h3>
-                <p className="text-[10px] text-gray-500 font-mono max-w-xs text-center leading-relaxed">
+                <p className="text-[10px] text-gray-500 font-mono max-w-xs text-center leading-relaxed mb-4">
                   The high-frequency real-time feed requires an active Bot License. Activate your bot to unlock the technical terminal.
                 </p>
+                <div className="bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-lg mb-6">
+                   <p className="text-[8px] font-black text-red-500 uppercase tracking-widest">
+                     "Fortune favors the bold. Cowards never enter the trade."
+                   </p>
+                </div>
                 <div className="mt-8 flex gap-3">
                   <div className="h-[1px] w-12 bg-white/10 self-center" />
                   <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Upgrade to Access</span>
@@ -422,9 +435,12 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
         {/* Sidebar / Analysis Output */}
         <div className="lg:col-span-1 space-y-4">
           <div className="glass-panel p-5 border-white/5 h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-6 text-xs font-bold text-white uppercase tracking-widest">
-              <Terminal size={14} className="text-gray-400" />
-              Bot Output
+            <div className="flex items-center gap-2 mb-6 text-xs font-bold text-white uppercase tracking-widest justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal size={14} className="text-gray-400" />
+                Bot Output
+              </div>
+              <span className="text-[7px] text-red-500 font-black animate-pulse">IF YOU AREN'T BRAVE, DON'T TRADE</span>
             </div>
 
             <div className="flex-1 space-y-4">
@@ -444,7 +460,10 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
                       <div className="p-3 bg-black/40 rounded border border-white/5 space-y-2">
                         <div className="flex justify-between text-[10px] font-black text-white uppercase">
                           <span>License Fee</span>
-                          <span className="text-yellow-500">1000 PKR</span>
+                          <div className="text-right">
+                            {discount > 0 && <span className="text-[8px] line-through opacity-50 mr-2">{botPrice} PKR</span>}
+                            <span className="text-yellow-500">{finalPrice} PKR</span>
+                          </div>
                         </div>
                         <div className="h-[1px] bg-white/5" />
                         <div className="space-y-1">
@@ -510,7 +529,7 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
                       <div className="w-12 h-12 rounded-full border-2 border-yellow-500 border-t-transparent animate-spin mx-auto mb-4" />
                       <h4 className="text-xs font-black text-white uppercase tracking-widest">Assistant Bot Examining Proof</h4>
                       <p className="text-[9px] text-gray-500 font-mono leading-relaxed">
-                        The AI is currently scanning your screenshot to verify the Transaction ID, Recipient (Hijran Bano), and Amount (1000 PKR). Do not close this panel.
+                        The AI is currently scanning your screenshot to verify the Transaction ID, Recipient (Hijran Bano), and Amount ({finalPrice} PKR). Do not close this panel.
                       </p>
                     </div>
                   )}
