@@ -127,22 +127,38 @@ export default function AdminSignalForm({ onAddSignal }: AdminSignalFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
         <button
           onClick={(e) => handleSubmit(e, 'pending')}
           disabled={isSubmitting}
-          className="btn-outline flex items-center justify-center gap-2 border-dashed border-white/40 disabled:opacity-50"
+          className="btn-outline flex items-center justify-center gap-2 border-dashed border-white/40 disabled:opacity-50 text-xs py-3"
         >
           <Clock size={18} />
-          {isSubmitting ? 'PROCESSING...' : 'POST ASSET ONLY (PENDING)'}
+          {isSubmitting ? '...' : 'PENDING'}
         </button>
         <button
           onClick={(e) => handleSubmit(e, 'active')}
           disabled={isSubmitting}
-          className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
+          className="btn-primary flex items-center justify-center gap-2 disabled:opacity-50 text-xs py-3"
         >
           <Send size={18} />
-          {isSubmitting ? 'BROADCASTING...' : 'BROADCAST FULL SIGNAL'}
+          {isSubmitting ? '...' : 'BROADCAST'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (Notification.permission === 'granted') {
+              new Notification("DARK TRADING ALERT", {
+                body: `Test Signal: ${pair} | ${direction} | Entry: ${entryPrice || 'Market'}`,
+                icon: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png'
+              });
+            } else {
+              alert("Please enable notifications in the header first!");
+            }
+          }}
+          className="bg-blue-600/10 text-blue-400 hover:bg-blue-600/20 border border-blue-500/20 rounded-xl font-bold text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all"
+        >
+          Test Push
         </button>
       </div>
     </div>

@@ -34,6 +34,7 @@ export default function App() {
   const [isVip, setIsVip] = useState(false);
   const [isBotUser, setIsBotUser] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [pushTokens, setPushTokens] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +147,18 @@ export default function App() {
       setAllUsers(vips);
     });
 
-    return () => unsubVips();
+    const unsubTokens = onSnapshot(collection(db, 'push_tokens'), (snapshot) => {
+      const tokens: Record<string, boolean> = {};
+      snapshot.docs.forEach(doc => {
+        tokens[doc.id] = doc.data().active !== false;
+      });
+      setPushTokens(tokens);
+    });
+
+    return () => {
+      unsubVips();
+      unsubTokens();
+    };
   }, [isAdmin]);
 
   const handleAddSignal = async ({ pair, direction, entryPrice, expiryMinutes, status, type }: any) => {
@@ -547,9 +559,14 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {allUsers.map((u) => (
                   <div key={u.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="text-xs font-bold text-white truncate">{u.email}</span>
-                      <span className="text-[10px] text-gray-500 font-mono">Member Since: {u.joinedAt?.toDate?.()?.toLocaleDateString() || 'N/A'}</span>
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className={`p-1.5 rounded-full ${pushTokens[u.id] ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`} title={pushTokens[u.id] ? "Push Notifications Active" : "No Push Token Registered"}>
+                        <Activity size={14} className={pushTokens[u.id] ? 'animate-pulse' : ''} />
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-white truncate">{u.email}</span>
+                        <span className="text-[10px] text-gray-500 font-mono">Member Since: {u.joinedAt?.toDate?.()?.toLocaleDateString() || 'N/A'}</span>
+                      </div>
                     </div>
                     <button 
                       onClick={() => { if(window.confirm(`Revoke VIP for ${u.email}?`)) handleToggleVip(u.id, true) }}

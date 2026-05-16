@@ -87,6 +87,18 @@
         "lastStatus": { "type": "string" }
       },
       "required": ["isActive"]
+    },
+    "PushToken": {
+      "title": "Push Token",
+      "description": "Cloud Messaging registration token for a user.",
+      "type": "object",
+      "properties": {
+        "token": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "active": { "type": "boolean" },
+        "platform": { "type": "string" }
+      },
+      "required": ["token", "updatedAt", "active"]
     }
   },
   "firestore": {
@@ -117,6 +129,10 @@
     "/system/trading_session": {
       "schema": "TradingSession",
       "description": "Global session state tracking."
+    },
+    "/push_tokens/{userId}": {
+      "schema": "PushToken",
+      "description": "FCM tokens for push notifications."
     }
   }
 }

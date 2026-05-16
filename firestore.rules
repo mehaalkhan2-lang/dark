@@ -45,7 +45,7 @@ service cloud.firestore {
              data.type in ['public', 'vip'] &&
              data.status in ['pending', 'active', 'win', 'loss', 'expired'] &&
              (isCreate ? data.createdAt == request.time : data.createdAt == resource.data.createdAt) &&
-             data.authorId == request.auth.uid;
+             (isCreate ? data.authorId == request.auth.uid : data.authorId == resource.data.authorId);
     }
 
     function isValidReview(data) {
@@ -65,11 +65,26 @@ service cloud.firestore {
              (!('lastStatus' in data) || (data.lastStatus is string && data.lastStatus.size() <= 20));
     }
 
+    function isValidPushToken(data) {
+      return data.keys().hasAll(['token', 'updatedAt', 'active']) &&
+             data.keys().size() >= 3 && data.keys().size() <= 4 &&
+             data.token is string && data.token.size() <= 512 &&
+             data.updatedAt == request.time &&
+             data.active is bool &&
+             (!('platform' in data) || (data.platform is string && data.platform.size() <= 100));
+    }
+
     // --- Collection Rules ---
 
     match /system/trading_session {
       allow read: if true;
       allow write: if isAdmin() && isValidSession(incoming());
+    }
+
+    match /push_tokens/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow write: if isSignedIn() && request.auth.uid == userId && isValidPushToken(incoming());
     }
 
     match /signals/{signalId} {
