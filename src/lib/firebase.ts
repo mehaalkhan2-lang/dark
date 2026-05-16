@@ -47,26 +47,6 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Test connection
-async function testConnection() {
-  try {
-    console.log('Attempting Firestore connection test...');
-    const connDoc = doc(db, 'system', 'trading_session');
-    await getDocFromServer(connDoc);
-    console.log('Firestore connection test: SUCCESS (or permission denied, which is interactive)');
-  } catch (error) {
-    console.error('Firestore connection test FAILED:', error);
-    if(error instanceof Error) {
-      if (error.message.includes('the client is offline')) {
-        console.error("CRITICAL: Firestore backend unreachable. Check internet or Firebase project state.");
-      }
-      if (error.message.includes('permission-denied')) {
-        console.log("Firestore connection test: Permission Denied (this is expected for guest users)");
-      }
-    }
-  }
-}
-testConnection();
-
+// Connection test removed to prevent noise in offline environments.
 export const login = () => signInWithPopup(auth, googleProvider);
 export const logout = () => signOut(auth);

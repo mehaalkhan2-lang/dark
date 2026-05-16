@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI } from "@google/genai";
 import { 
   Cpu, 
   Activity, 
@@ -77,11 +76,11 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
     // TradingView Widget initialization
     if (!(isBotUser || isAdmin)) return;
 
-    const script = document.createElement('script');
-    script.src = 'https://s3.tradingview.com/tv.js';
-    script.async = true;
-    script.onload = () => {
-      if (document.getElementById('tradingview_chart')) {
+    const scriptId = 'tradingview-widget-script';
+    let script = document.getElementById(scriptId) as HTMLScriptElement;
+
+    const initWidget = () => {
+      if (document.getElementById('tradingview_chart') && (window as any).TradingView) {
         new (window as any).TradingView.widget({
           "autosize": true,
           "symbol": selectedAsset.symbol,
@@ -98,12 +97,32 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
         });
       }
     };
-    document.head.appendChild(script);
+
+    if (!script) {
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://s3.tradingview.com/tv.js';
+      script.async = true;
+      script.onload = initWidget;
+      document.head.appendChild(script);
+    } else {
+      // Script already exists, check if TradingView is ready
+      if ((window as any).TradingView) {
+        initWidget();
+      } else {
+        script.onload = initWidget;
+      }
+    }
+
     addLog(`System established handshake with ${selectedBroker.name} API...`);
     addLog(`Subscribing to ${selectedAsset.id} ticker...`);
 
     return () => {
-      // Cleanup if needed
+      // Logic for cleaning up the widget instance
+      const container = document.getElementById('tradingview_chart');
+      if (container) {
+        container.innerHTML = '';
+      }
     };
   }, [selectedAsset, selectedBroker, isBotUser, isAdmin]);
 
@@ -121,51 +140,25 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
     addLog(`Running Neural Scan on ${selectedAsset.id}...`);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
       addLog(`Extracting ${selectedBroker.name} session vitals...`);
       await new Promise(r => setTimeout(r, 600));
       addLog(`Syncing with Interbank Liquidity Pools...`);
       await new Promise(r => setTimeout(r, 1000));
       addLog("Analyzing Order Flow Imbalance...");
-      await new Promise(r => setTimeout(r, 800));
-      addLog("Scanning for Institutional Stop-Hunts...");
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Perform a deep technical multi-timeframe analysis for ${selectedAsset.name} (${selectedAsset.symbol}). 
-        Context: ${selectedBroker.name} Platform ${isOtc ? '(OTC Algorithmic Market)' : '(RE-TIME INTERBANK FEED)'}.
-        Current Market Conditions: High Volatility, Significant Order Imbalance detected at psychological levels.
-        
-        Focus on 1-MINUTE EXPIRATION parameters:
-        - Instantaneous Price Action Momentum.
-        - Institutional Liquidity Sourcing Levels (Shadow Levels).
-        - RSI (7) overbought/oversold with volume confirmation.
-        - Support/Resistance liquidy pools on the 5-minute chart.
-        - Candle patterns: Pin bars, Engulfing, displacement candles.
-
-        Provide: 
-        1. Direction (CALL/PUT)
-        2. Confidence level (0-100%)
-        3. Detailed technical reasoning (Deeply technical summary)
-        4. Target Price Projection (Precise for 1-minute expiration)`,
-        config: {
-            systemInstruction: `You are an elite quantitative analyst bot for ${selectedBroker.name}. ${isOtc ? 'Monitor OTC algorithmic patterns and price spikes.' : 'Analyze institutional order flow and macro-economic correlations.'} Your signals must be highly precise and deeply descriptive.`,
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: "OBJECT",
-                properties: {
-                    direction: { type: "STRING" },
-                    confidence: { type: "NUMBER" },
-                    reason: { type: "STRING" },
-                    target: { type: "STRING" }
-                },
-                required: ["direction", "confidence", "reason", "target"]
-            }
-        }
+      
+      const response = await fetch('/api/bot/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          asset: selectedAsset.name,
+          symbol: selectedAsset.symbol,
+          isOtc,
+          brokerName: selectedBroker.name
+        })
       });
 
-      const result = JSON.parse(response.text || "{}");
+      if (!response.ok) throw new Error("API process failure");
+      const result = await response.json();
       setAnalysis(result);
       addLog(`Analysis complete. Signal: ${result.direction}`);
     } catch (err: any) {
@@ -193,8 +186,6 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
     addLog("Uplinking screenshot to Assistant Bot...");
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
       // Save purchase attempt for admin review
       if (auth.currentUser) {
         addDoc(collection(db, 'bot_activations'), {
@@ -216,51 +207,17 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session }:
       });
       const base64Data = await base64Promise;
 
-      const prompt = `Analyze this transaction screenshot. 
-      Verify the following payment details:
-      - Recipient Number: 03451959533
-      - Recipient Name: Hijran Bano (accept minor variations like Hijra Bano)
-      - Amount: 1000 PKR
-      - Status: Must be Successful / Sent / Paid / Completed
-      
-      Extract the Transaction ID, the exact amount found, and the recipient name found.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: {
-          parts: [
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: proofImage.type
-              }
-            },
-            {
-              text: prompt
-            }
-          ]
-        },
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: "OBJECT",
-            properties: {
-              isValid: { 
-                type: "BOOLEAN",
-                description: "True if recipient number, name (Hijran Bano), and amount (1000 PKR) match perfectly and status is successful."
-              },
-              transactionId: { type: "STRING" },
-              amountDetected: { type: "STRING" },
-              recipientDetected: { type: "STRING" },
-              reason: { type: "STRING", description: "If invalid, explain why (e.g. 'Wrong amount', 'Recipient name mismatch', 'Screenshot of pending status')" }
-            },
-            required: ["isValid", "transactionId", "amountDetected", "recipientDetected", "reason"]
-          }
-        }
+      const response = await fetch('/api/bot/verify-purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          base64Data,
+          mimeType: proofImage.type
+        })
       });
 
-      const text = response.text || "{}";
-      const result = JSON.parse(text);
+      if (!response.ok) throw new Error("Verification service issue");
+      const result = await response.json();
       
       if (result.isValid) {
         addLog(`Assistant Bot: Transaction ${result.transactionId} VERIFIED.`);

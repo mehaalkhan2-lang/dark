@@ -28,10 +28,14 @@ export function useNotifications(signals: Signal[], session?: { isActive: boolea
       onNewNotification?.({ title, body });
 
       if (Notification.permission === 'granted') {
-        new Notification(title, {
-          body,
-          icon: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png'
-        });
+        try {
+          new Notification(title, {
+            body,
+            icon: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png'
+          });
+        } catch (err) {
+          console.warn("Notification error:", err);
+        }
       }
     }
     prevSessionActive.current = session?.isActive || false;
@@ -52,10 +56,14 @@ export function useNotifications(signals: Signal[], session?: { isActive: boolea
 
         // Show browser notification
         if (Notification.permission === 'granted') {
-          new Notification(title, {
-            body,
-            icon: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png'
-          });
+          try {
+            new Notification(title, {
+              body,
+              icon: 'https://cdn-icons-png.flaticon.com/512/1055/1055644.png'
+            });
+          } catch (err) {
+            console.warn("Notification error:", err);
+          }
         }
       }
     }

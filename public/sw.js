@@ -14,6 +14,16 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Use NetworkFirst for HTML files to avoid stale white/black screens
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Use CacheFirst with Network fallback for other assets
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request);

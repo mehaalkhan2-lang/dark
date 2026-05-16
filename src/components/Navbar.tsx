@@ -21,30 +21,50 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
   const { permission, requestPermission, token, loading } = usePushNotifications();
 
   useEffect(() => {
-    const handler = (e: any) => {
+    const handlePrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstallBtn(true);
     };
 
-    window.addEventListener('beforeinstallprompt', handler);
+    const handleInstalled = () => {
+      setDeferredPrompt(null);
+      setShowInstallBtn(false);
+    };
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    window.addEventListener('beforeinstallprompt', handlePrompt);
+    window.addEventListener('appinstalled', handleInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handlePrompt);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
   }, []);
 
   const handleInstall = async () => {
     if (!deferredPrompt) {
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isChromeAndroid = /Chrome/.test(navigator.userAgent) && /Android/.test(navigator.userAgent);
+      
       if (isIOS) {
-        alert("IPHONE INSTALLATION:\n1. Open this page in Safari\n2. Tap the Share button\n3. Select 'Add to Home Screen'\n\nThis is REQUIRED for background notifications on iPhone.");
+        alert("IPHONE INSTALLATION:\n1. Open Safari\n2. Tap 'Share' (square with arrow)\n3. Tap 'Add to Home Screen'\n\nThis is REQUIRED for background notifications.");
+      } else if (isChromeAndroid) {
+        alert("ANDROID INSTALLATION:\n1. Tap the 3-dots menu (top right)\n2. Tap 'Install app' or 'Add to Home Screen'\n\nThe icon will appear on your desktop once finished.");
       } else {
-        alert("INSTALLATION GUIDE:\n1. Click the Browser Menu (3 dots)\n2. Select 'Install' or 'Add to Home Screen'\n\nThis turns Dark Trading into a fast, standalone app.");
+        alert("INSTALLATION GUIDE:\n1. Click your Browser's Menu\n2. Select 'Install' or 'Add to Home Screen'\n\nThis turns the site into a high-performance standalone app.");
       }
       return;
     }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
+    
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to install prompt: ${outcome}`);
+      setDeferredPrompt(null);
+      setShowInstallBtn(false);
+    } catch (err) {
+      console.error("Installation failed:", err);
+    }
   };
 
   const handleToggleNotifications = async () => {
@@ -123,14 +143,18 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
                 </button>
               )}
             </div>
-            <button 
-              onClick={handleInstall}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 border border-red-400/30 rounded text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
-              title="Download Desktop/Mobile App"
-            >
-              <Download size={14} />
-              <span>Download App</span>
-            </button>
+              <button 
+                onClick={handleInstall}
+                className={`flex items-center gap-1.5 px-3 py-1.5 border rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
+                  showInstallBtn 
+                    ? 'bg-red-600 border-red-400/30 text-white hover:bg-red-700 shadow-red-600/20 animate-bounce' 
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+                }`}
+                title={showInstallBtn ? "Install Native App" : "App Installation Instructions"}
+              >
+                <Download size={14} />
+                <span>{showInstallBtn ? 'Install Now' : 'Download App'}</span>
+              </button>
             <button 
               onClick={onReviewsClick}
               className="hidden md:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors"
