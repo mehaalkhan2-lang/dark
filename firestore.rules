@@ -74,22 +74,11 @@ service cloud.firestore {
              (!('platform' in data) || (data.platform is string && data.platform.size() <= 100));
     }
 
-    function isValidSettings(data) {
-      return (data.botPrice is number || !('botPrice' in data)) &&
-             (data.discountPercentage is number || !('discountPercentage' in data)) &&
-             (data.fakeMemberOffset is number || !('fakeMemberOffset' in data));
-    }
-
     // --- Collection Rules ---
 
     match /system/trading_session {
       allow read: if true;
       allow write: if isAdmin() && isValidSession(incoming());
-    }
-
-    match /system/settings {
-      allow read: if true;
-      allow write: if isAdmin() && isValidSettings(incoming());
     }
 
     match /push_tokens/{userId} {

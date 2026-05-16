@@ -99,16 +99,6 @@
         "platform": { "type": "string" }
       },
       "required": ["token", "updatedAt", "active"]
-    },
-    "Settings": {
-      "title": "System Settings",
-      "description": "Global configuration for the platform.",
-      "type": "object",
-      "properties": {
-        "botPrice": { "type": "number" },
-        "discountPercentage": { "type": "number" },
-        "fakeMemberOffset": { "type": "number" }
-      }
     }
   },
   "firestore": {
@@ -139,10 +129,6 @@
     "/system/trading_session": {
       "schema": "TradingSession",
       "description": "Global session state tracking."
-    },
-    "/system/settings": {
-      "schema": "Settings",
-      "description": "Global price and display configurations."
     },
     "/push_tokens/{userId}": {
       "schema": "PushToken",

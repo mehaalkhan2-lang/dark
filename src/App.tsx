@@ -20,31 +20,28 @@ import { Signal, TradeDirection } from './types';
 import Navbar from './components/Navbar';
 import AdminSignalForm from './components/AdminSignalForm';
 import SignalCard from './components/SignalCard';
+import SignalsBotPortal from './components/SignalsBotPortal';
 import AdminReviewForm from './components/AdminReviewForm';
 import ReviewsSection from './components/ReviewsSection';
 import SupportAssistant from './components/SupportAssistant';
 import { useNotifications } from './hooks/useNotifications';
 import ErrorBoundary from './components/ErrorBoundary';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Zap, AlertCircle, XCircle, User as UserIcon, Activity, Smartphone } from 'lucide-react';
-import AndroidInstallGuide from './components/AndroidInstallGuide';
+import { Shield, Zap, AlertCircle, XCircle, User as UserIcon, Activity } from 'lucide-react';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVip, setIsVip] = useState(false);
+  const [isBotUser, setIsBotUser] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [pushTokens, setPushTokens] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'public' | 'vip' | 'reviews'>('public');
+  const [activeTab, setActiveTab] = useState<'public' | 'vip' | 'bot' | 'reviews'>('public');
   const [session, setSession] = useState<any>(null);
-  const [settings, setSettings] = useState({
-    fakeMemberOffset: 955
-  });
   const [activeNotification, setActiveNotification] = useState<{ title: string; body: string } | null>(null);
-  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
 
   useNotifications(signals, session, (notif) => {
     setActiveNotification(notif);
@@ -52,52 +49,29 @@ export default function App() {
   });
 
   useEffect(() => {
-    const unsubSettings = onSnapshot(doc(db, 'system', 'settings'), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        setSettings({
-          fakeMemberOffset: data.fakeMemberOffset || 955
-        });
-      }
-    });
-
-    return () => unsubSettings();
-  }, []);
-
-  useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        // Designated Admin check: immediately grant UI privileges and bootstrap Firestore
-        const isDesignatedAdmin = u.email === 'mehaalkhan.2@gmail.com';
-        
-        if (isDesignatedAdmin) {
-          try {
-            await setDoc(doc(db, 'admins', u.uid), {
-              email: u.email,
-              uid: u.uid
-            }, { merge: true });
-          } catch (e) {
-            console.error("Admin document bootstrap failed", e);
-          }
-        }
-
         try {
-          const [adminDoc, vipDoc] = await Promise.all([
+          const [adminDoc, vipDoc, botDoc] = await Promise.all([
             getDoc(doc(db, 'admins', u.uid)),
-            getDoc(doc(db, 'vips', u.uid))
+            getDoc(doc(db, 'vips', u.uid)),
+            getDoc(doc(db, 'bot_access', u.uid))
           ]);
-          const isUserAdmin = adminDoc.exists() || isDesignatedAdmin;
+          const isUserAdmin = adminDoc.exists();
           setIsAdmin(isUserAdmin);
           setIsVip(isUserAdmin || vipDoc.exists());
+          setIsBotUser(isUserAdmin || botDoc.exists());
         } catch (err) {
           console.error("Access check failed", err);
           setIsAdmin(false);
           setIsVip(false);
+          setIsBotUser(false);
         }
       } else {
         setIsAdmin(false);
         setIsVip(false);
+        setIsBotUser(false);
       }
       setLoading(false);
     });
@@ -295,15 +269,6 @@ export default function App() {
     }
   };
 
-  const handleUpdateSettings = async (newSettings: Partial<typeof settings>) => {
-    if (!isAdmin) return;
-    try {
-      await setDoc(doc(db, 'system', 'settings'), newSettings, { merge: true });
-    } catch (err) {
-      console.error("Settings update failed", err);
-    }
-  };
-
   const handleUpdateStatus = async (id: string, status: Signal['status']) => {
     if (!user || !isAdmin) return;
     const path = `signals/${id}`;
@@ -333,22 +298,6 @@ export default function App() {
         activatedAt: serverTimestamp(),
         expiry: new Date(Date.now() + signal.durationMinutes * 60000)
       });
-
-      // Broadcast push notification
-      try {
-        fetch('/api/push/broadcast', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: `NEW SIGNAL: ${signal.asset} ${direction.toUpperCase()}`,
-            body: `${direction.toUpperCase()} analysis confirmed. 1-minute expiration recommended. Check Live Feed for details.`,
-            data: { url: window.location.origin }
-          })
-        }).catch(err => console.error("Broadcast failed:", err));
-      } catch (e) {
-        console.error("Push fetch error:", e);
-      }
-
       setError(null);
     } catch (err) {
       try {
@@ -440,32 +389,9 @@ export default function App() {
           isVip={isVip} 
           session={session}
           onVipClick={() => setActiveTab('vip')}
+          onBotClick={() => setActiveTab('bot')}
           onReviewsClick={() => setActiveTab('reviews')}
-          onDownloadClick={() => setIsInstallGuideOpen(true)}
         />
-
-        {/* Motivational Ticker */}
-        <div className="bg-red-600/10 border-y border-white/5 py-2 overflow-hidden whitespace-nowrap">
-          <motion.div 
-            animate={{ x: [0, -2000] }}
-            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            className="flex gap-24 items-center"
-          >
-            {[
-              "FEAR IS THE ONLY ENEMY IN THE MARKET. IF YOU AREN'T BRAVE, DON'T TRADE.",
-              "THE MARKET REWARDS THE FEARLESS AND CONSUMES THE HESITANT.",
-              "FORTUNE FAVORS THE BOLD. COWARDS NEVER ENTER THE TRADE.",
-              "TRADING IS A BATTLE OF WILLS. COURAGE IS YOUR SWORD.",
-              "YOU DON'T NEED LUCK. YOU NEED THE BRAVERY TO STAND BY YOUR ANALYSIS.",
-              "ONLY THE BRAVE SCALE THE PEAK OF PROFITABILITY."
-            ].map((text, i) => (
-              <span key={i} className="text-[10px] font-black text-red-500/80 uppercase tracking-[0.4em] flex items-center gap-4">
-                <Zap size={10} className="fill-red-500" />
-                {text}
-              </span>
-            ))}
-          </motion.div>
-        </div>
 
         <main className="max-w-5xl mx-auto px-4 py-12">
           {user?.email === "mehaalkhan.2@gmail.com" && !isAdmin && (
@@ -484,41 +410,24 @@ export default function App() {
 
           {isAdmin && (
             <div className="mb-12 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="glass-panel p-6 border-white/5 bg-gradient-to-r from-red-500/5 to-transparent flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${session?.isActive ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
-                      <Activity size={24} className={session?.isActive ? 'animate-pulse' : ''} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black uppercase tracking-widest text-white">Market Protocol</h3>
-                      <p className="text-[10px] font-mono text-gray-500 uppercase">
-                        Status: <span className={session?.isActive ? 'text-green-500' : 'text-red-500'}>{session?.isActive ? 'SESSION LIVE' : 'SESSION CLOSED'}</span>
-                      </p>
-                    </div>
+              <div className="glass-panel p-6 border-white/5 bg-gradient-to-r from-red-500/5 to-transparent flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${session?.isActive ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
+                    <Activity size={24} className={session?.isActive ? 'animate-pulse' : ''} />
                   </div>
-                  <button
-                    onClick={handleToggleSignalSession}
-                    className={`px-8 py-3 rounded text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl ${session?.isActive ? 'bg-white text-black hover:bg-red-500 hover:text-white' : 'bg-red-600 text-white hover:bg-red-700 shadow-red-500/20'}`}
-                  >
-                    {session?.isActive ? 'STOP GLOBAL SESSION' : 'START GLOBAL SESSION'}
-                  </button>
-                </div>
-
-                <div className="glass-panel p-6 border-white/5">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-4">Display Control</h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="block text-[8px] font-mono text-gray-600 uppercase mb-1">Fake Member Offset</label>
-                      <input 
-                        type="number" 
-                        value={settings.fakeMemberOffset} 
-                        onChange={(e) => handleUpdateSettings({ fakeMemberOffset: Number(e.target.value) })}
-                        className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs font-mono"
-                      />
-                    </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-white">Market Protocol</h3>
+                    <p className="text-[10px] font-mono text-gray-500 uppercase">
+                      Status: <span className={session?.isActive ? 'text-green-500' : 'text-red-500'}>{session?.isActive ? 'SESSION LIVE' : 'SESSION CLOSED'}</span>
+                    </p>
                   </div>
                 </div>
+                <button
+                  onClick={handleToggleSignalSession}
+                  className={`px-8 py-3 rounded text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-xl ${session?.isActive ? 'bg-white text-black hover:bg-red-500 hover:text-white' : 'bg-red-600 text-white hover:bg-red-700 shadow-red-500/20'}`}
+                >
+                  {session?.isActive ? 'STOP GLOBAL SESSION' : 'START GLOBAL SESSION'}
+                </button>
               </div>
 
               <AdminSignalForm onAddSignal={handleAddSignal} />
@@ -558,6 +467,12 @@ export default function App() {
                   {activeTab === 'vip' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-500 rounded-full" />}
                 </button>
                 <button
+                  onClick={() => setActiveTab('bot')}
+                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative shrink-0 ${activeTab === 'bot' ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  DARK TRADING BOT
+                </button>
+                <button
                   onClick={() => setActiveTab('reviews')}
                   className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative shrink-0 ${activeTab === 'reviews' ? 'text-green-500' : 'text-gray-500 hover:text-gray-300'}`}
                 >
@@ -569,10 +484,7 @@ export default function App() {
             <div className="flex items-center gap-4 text-[10px] font-mono text-gray-500 bg-white/5 p-2 rounded-lg border border-white/5 md:bg-transparent md:border-0 md:p-0">
               <div className="flex items-center gap-1.5 border-r border-white/10 pr-4">
                 <UserIcon size={14} />
-                <span className="font-bold">
-                  {isAdmin ? allUsers.length + 1 : (settings.fakeMemberOffset + allUsers.length + 1).toLocaleString()}
-                </span>
-                {isAdmin && <span className="text-[8px] text-gray-600 bg-white/5 px-1 rounded">REAL</span>}
+                <span className="font-bold">1,005</span>
               </div>
               <div className="flex items-center gap-2 text-green-500">
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
@@ -590,52 +502,35 @@ export default function App() {
 
           {!user && (
             <motion.div 
-              initial={{ opacity: 0, y: 20 }} 
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-12 grid grid-cols-1 md:grid-cols-2 gap-6"
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              className="mb-12 p-8 glass-panel text-center border-white/5 relative overflow-hidden"
             >
-              <div className="p-8 glass-panel border-white/5 relative overflow-hidden flex flex-col justify-center">
-                <div className="absolute top-0 right-0 p-3">
-                  <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-[10px] font-black text-red-500 uppercase tracking-widest">
-                    <UserIcon size={12} />
-                    ENTRY GRANTED
-                  </div>
-                </div>
-                <h3 className="text-xl font-bold mb-2 uppercase tracking-wider">Observer Protocol</h3>
-                <p className="text-gray-400 text-sm mb-6">
-                  You are currently in observer mode. Login to receive personalized trade alerts.
-                </p>
-                <button 
-                  onClick={login}
-                  className="w-fit px-8 py-3 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded hover:bg-red-600 hover:text-white transition-all active:scale-95"
-                >
-                  INITIALIZE ACCOUNT
-                </button>
-              </div>
-
-              <div className="p-8 glass-panel border-red-500/20 bg-red-600/5 relative overflow-hidden group cursor-pointer" onClick={() => setIsInstallGuideOpen(true)}>
-                <div className="absolute -top-4 -right-4 p-8 opacity-10 group-hover:rotate-12 transition-transform duration-700">
-                  <Smartphone size={120} />
-                </div>
-                <div className="relative z-10">
-                  <div className="w-12 h-12 bg-red-600 text-white rounded-xl flex items-center justify-center mb-6 shadow-lg shadow-red-600/20">
-                    <Smartphone size={24} />
-                  </div>
-                  <h3 className="text-xl font-bold mb-2 uppercase tracking-tight">Android App Download</h3>
-                  <p className="text-gray-400 text-sm mb-6 max-w-xs leading-relaxed">
-                    Install our native Android application for 0ms latency alerts and background background monitoring.
-                  </p>
-                  <div className="flex items-center gap-2 text-[10px] font-black text-red-500 uppercase tracking-widest">
-                    GET APK GUIDE <Zap size={10} />
-                  </div>
+              <div className="absolute top-0 right-0 p-3">
+                <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded text-[10px] font-black text-red-500 uppercase tracking-widest">
+                  <UserIcon size={12} />
+                  ENTRY GRANTED
                 </div>
               </div>
+              <h3 className="text-lg font-bold mb-2 uppercase tracking-wider">Welcome to Dark Trading Network</h3>
+              <p className="text-gray-400 text-sm mb-0">
+                You are currently in observer mode. Login to receive personalized trade alerts.
+              </p>
             </motion.div>
           )}
 
           <div className="space-y-4">
             <AnimatePresence mode="wait">
-              {activeTab === 'reviews' ? (
+              {activeTab === 'bot' ? (
+                <motion.div
+                  key="bot-tab"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                >
+                  <SignalsBotPortal isVip={isVip} isAdmin={isAdmin} isBotUser={isBotUser} session={session} />
+                </motion.div>
+              ) : activeTab === 'reviews' ? (
                 <motion.div
                   key="reviews-tab"
                   initial={{ opacity: 0, scale: 0.95 }}
@@ -741,18 +636,6 @@ export default function App() {
           &copy; {new Date().getFullYear()} Dark Trading Network. All rights reserved.
         </footer>
 
-        <div className="fixed bottom-6 right-6 z-50 md:hidden">
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsInstallGuideOpen(true)}
-            className="w-14 h-14 bg-red-600 text-white rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] border border-red-400/30"
-          >
-            <Smartphone size={24} />
-          </motion.button>
-        </div>
-
-        <AndroidInstallGuide isOpen={isInstallGuideOpen} onClose={() => setIsInstallGuideOpen(false)} />
         <SupportAssistant />
 
         {/* WhatsApp Style Toast Notification */}
