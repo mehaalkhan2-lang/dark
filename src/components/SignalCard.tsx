@@ -31,22 +31,36 @@ export default function SignalCard({ signal, onUpdateStatus, onSetDirection, onD
       return;
     }
 
-    const timer = setInterval(() => {
+    const calculateTime = () => {
       const now = Date.now();
-      const diff = signal.expiry - now;
+      // If activatedAt exists, calculate expiry from that to avoid clock skew 
+      // where admin's local Date.now() was used to set expiry.
+      // But we need to know the server duration. We have signal.durationMinutes.
+      const startTime = signal.activatedAt || (signal.expiry - (signal.durationMinutes * 60000));
+      const targetExpiry = startTime + (signal.durationMinutes * 60000);
+      
+      const diff = targetExpiry - now;
 
       if (diff <= 0) {
         setTimeLeft('00:00');
-        clearInterval(timer);
+        return true; // Finished
       } else {
         const minutes = Math.floor(diff / 60000);
         const seconds = Math.floor((diff % 60000) / 1000);
         setTimeLeft(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+        return false;
+      }
+    };
+
+    calculateTime();
+    const timer = setInterval(() => {
+      if (calculateTime()) {
+        clearInterval(timer);
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [signal.expiry, signal.status]);
+  }, [signal.expiry, signal.activatedAt, signal.durationMinutes, signal.status]);
 
   const isExpired = signal.status === 'active' && signal.expiry < Date.now();
   const statusColor = {

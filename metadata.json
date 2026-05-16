@@ -1,6 +1,10 @@
 {
-  "name": "Dark",
-  "description": "A high-performance binary trading signals platform with real-time alerts.",
-  "requestFramePermissions": [],
-  "majorCapabilities": []
+  "name": "DARK TRADING NETWORK",
+  "description": "Professional Binary Options Signals & AI Trading Bot. Real-time quantitative market analysis with institutional-grade alerts.",
+  "requestFramePermissions": [
+    "notifications"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

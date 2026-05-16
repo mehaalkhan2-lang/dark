@@ -110,6 +110,7 @@ export default function App() {
         id: doc.id,
         ...doc.data(),
         expiry: doc.data().expiry?.toMillis?.() || doc.data().expiry, // Handle both timestamp and number
+        activatedAt: doc.data().activatedAt?.toMillis?.() || doc.data().activatedAt,
         createdAt: doc.data().createdAt?.toMillis?.() || doc.data().createdAt,
       } as Signal));
       setSignals(data);
@@ -294,6 +295,7 @@ export default function App() {
       await updateDoc(doc(db, 'signals', id), { 
         direction,
         status: 'active',
+        activatedAt: serverTimestamp(),
         expiry: new Date(Date.now() + signal.durationMinutes * 60000)
       });
       setError(null);
@@ -443,44 +445,43 @@ export default function App() {
             </div>
           )}
 
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex flex-col gap-2">
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-6">
+            <div className="flex flex-col gap-4 w-full">
               <h2 className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
                 <Zap size={24} className="text-red-500" />
                 Live Monitoring
               </h2>
-              <div className="flex gap-4 border-b border-white/5">
+              <div className="flex gap-6 border-b border-white/5 overflow-x-auto scrollbar-hide whitespace-nowrap pb-1">
                 <button
                   onClick={() => setActiveTab('public')}
-                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative ${activeTab === 'public' ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative shrink-0 ${activeTab === 'public' ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                   PUBLIC SIGNALS
                   {activeTab === 'public' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-red-500 rounded-full" />}
                 </button>
                 <button
                   onClick={() => setActiveTab('vip')}
-                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative ${activeTab === 'vip' ? 'text-yellow-500' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative shrink-0 ${activeTab === 'vip' ? 'text-yellow-500' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                   VIP SIGNALS
                   {activeTab === 'vip' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-yellow-500 rounded-full" />}
                 </button>
                 <button
                   onClick={() => setActiveTab('bot')}
-                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative ${activeTab === 'bot' ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative shrink-0 ${activeTab === 'bot' ? 'text-red-500' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                   DARK TRADING BOT
-                  {activeTab === 'bot' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-red-500 rounded-full" />}
                 </button>
                 <button
                   onClick={() => setActiveTab('reviews')}
-                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative ${activeTab === 'reviews' ? 'text-green-500' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`pb-2 px-1 text-xs font-bold uppercase tracking-widest transition-all relative shrink-0 ${activeTab === 'reviews' ? 'text-green-500' : 'text-gray-500 hover:text-gray-300'}`}
                 >
                   REVIEWS
                   {activeTab === 'reviews' && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-green-500 rounded-full" />}
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-4 text-xs font-mono text-gray-500">
+            <div className="flex items-center gap-4 text-[10px] font-mono text-gray-500 bg-white/5 p-2 rounded-lg border border-white/5 md:bg-transparent md:border-0 md:p-0">
               <div className="flex items-center gap-1.5 border-r border-white/10 pr-4">
                 <UserIcon size={14} />
                 <span className="font-bold">1,005</span>

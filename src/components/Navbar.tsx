@@ -42,40 +42,41 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const isChromeAndroid = /Chrome/.test(navigator.userAgent) && /Android/.test(navigator.userAgent);
-      
-      if (isIOS) {
-        alert("IPHONE INSTALLATION:\n1. Open Safari\n2. Tap 'Share' (square with arrow)\n3. Tap 'Add to Home Screen'\n\nThis is REQUIRED for background notifications.");
-      } else if (isChromeAndroid) {
-        alert("ANDROID INSTALLATION:\n1. Tap the 3-dots menu (top right)\n2. Tap 'Install app' or 'Add to Home Screen'\n\nThe icon will appear on your desktop once finished.");
-      } else {
-        alert("INSTALLATION GUIDE:\n1. Click your Browser's Menu\n2. Select 'Install' or 'Add to Home Screen'\n\nThis turns the site into a high-performance standalone app.");
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+
+    if (deferredPrompt) {
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to install prompt: ${outcome}`);
+        setDeferredPrompt(null);
+        setShowInstallBtn(false);
+      } catch (err) {
+        console.error("Installation failed:", err);
       }
       return;
     }
-    
-    try {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`User response to install prompt: ${outcome}`);
-      setDeferredPrompt(null);
-      setShowInstallBtn(false);
-    } catch (err) {
-      console.error("Installation failed:", err);
+
+    if (isIOS) {
+      alert("IPHONE INSTALLATION (Required for Alerts):\n\n1. Tap the Share button (square with arrow)\n2. Scroll down and tap 'Add to Home Screen'\n3. Name it 'Dark Trading' and tap Add.");
+    } else if (isAndroid) {
+      alert("ANDROID INSTALLATION:\n\n1. Tap the 3-dots menu in Chrome\n2. Select 'Install app' or 'Add to Home Screen'.");
+    } else {
+      alert("DESKTOP INSTALLATION:\n\n1. Click your browser's menu\n2. Select 'Install Dark Trading' or 'Add to Home Screen'.");
     }
   };
 
   const handleToggleNotifications = async () => {
+    if (!user) {
+      alert("LOGIN REQUIRED\n\nPlease sign in to activate trader alerts. We need to sync notifications with your account profile.");
+      return;
+    }
     const vapidKey = import.meta.env.VITE_VAPID_KEY;
     if (!vapidKey) {
-      // Standard local notifications
       await requestPermission();
       return;
     }
-    
-    // Register for push notifications
     await requestPermission(vapidKey);
   };
 
@@ -88,28 +89,31 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
 
   return (
     <nav className="border-b border-white/5 bg-black/50 backdrop-blur-md sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 cursor-pointer group flex-shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center shadow-lg shadow-red-600/30 group-hover:scale-110 transition-transform">
             <Zap className="text-white fill-white" size={24} />
           </div>
-          <div className="flex flex-col">
+          <div className="hidden sm:flex flex-col">
             <h1 className="text-xl font-black italic tracking-tighter leading-none mb-0.5">DARK TRADING</h1>
             <div className="flex items-center gap-2">
               <span className="text-[9px] font-mono font-bold tracking-[0.4em] text-red-500 uppercase leading-none">Global Network</span>
               {session?.isActive && (
                 <span className="flex items-center gap-1 bg-green-500/10 text-green-500 border border-green-500/30 px-1 py-0.5 rounded-[2px] text-[7px] font-black uppercase tracking-widest animate-pulse">
                   <div className="w-1 h-1 rounded-full bg-green-500" />
-                  Live Session
+                  Live
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5">
+        <div className="flex items-center gap-2 sm:gap-6">
+          <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
+            <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 relative">
+              {!user && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-black animate-pulse z-10" />
+              )}
               <button 
                 onClick={handleToggleNotifications}
                 disabled={loading}
@@ -122,10 +126,10 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
                       ? 'text-red-500 hover:bg-red-500/10'
                       : 'text-gray-400 hover:text-white hover:bg-white/5 animate-pulse'
                 }`}
-                title={`Notifications: ${permission.toUpperCase()}`}
+                title={user ? `Notifications: ${permission.toUpperCase()}` : "Sign in to activate alerts"}
               >
                 {permission === 'granted' ? <Bell size={16} /> : <BellOff size={16} />}
-                <span className="text-[10px] font-black uppercase hidden sm:inline-block">
+                <span className="text-[10px] font-black uppercase hidden lg:inline-block">
                   {permission === 'granted' ? 'Active' : 'Alerts'}
                 </span>
               </button>
@@ -139,25 +143,25 @@ export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick
                   }`}
                   title={token ? "Click to copy registration token" : "Token missing - click to retry generation"}
                 >
-                  {token ? 'Copy Token' : 'Get Token'}
+                  {token ? 'Copy' : 'Sync'}
                 </button>
               )}
             </div>
-              <button 
-                onClick={handleInstall}
-                className={`flex items-center gap-1.5 px-3 py-1.5 border rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
-                  showInstallBtn 
-                    ? 'bg-red-600 border-red-400/30 text-white hover:bg-red-700 shadow-red-600/20 animate-bounce' 
-                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
-                }`}
-                title={showInstallBtn ? "Install Native App" : "App Installation Instructions"}
-              >
-                <Download size={14} />
-                <span>{showInstallBtn ? 'Install Now' : 'Download App'}</span>
-              </button>
+            <button 
+              onClick={handleInstall}
+              className={`flex items-center gap-1.5 px-3 py-1.5 border rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex-shrink-0 ${
+                showInstallBtn 
+                  ? 'bg-red-600 border-red-400/30 text-white hover:bg-red-700 shadow-red-600/20 animate-bounce' 
+                  : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
+              }`}
+              title={showInstallBtn ? "Install Native App" : "App Installation Instructions"}
+            >
+              <Download size={14} />
+              <span className="hidden xs:inline-block">{showInstallBtn ? 'Install Now' : 'Get App'}</span>
+            </button>
             <button 
               onClick={onReviewsClick}
-              className="hidden md:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors"
+              className="hidden lg:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors flex-shrink-0"
             >
               Reviews
             </button>
