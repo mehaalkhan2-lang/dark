@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { Zap, LogOut, User as UserIcon, ShieldCheck, Download, Bell, BellOff } from 'lucide-react';
-import { usePushNotifications } from '../hooks/usePushNotifications';
+import { Zap, LogOut, User as UserIcon, ShieldCheck, Download } from 'lucide-react';
 
 interface NavbarProps {
   user: User | null;
@@ -10,150 +9,67 @@ interface NavbarProps {
   onVipClick: () => void;
   onBotClick: () => void;
   onReviewsClick: () => void;
-  onDownloadClick: () => void;
   isAdmin: boolean;
   isVip: boolean;
-  session?: { isActive: boolean };
 }
 
-export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick, onReviewsClick, onDownloadClick, isAdmin, isVip, session }: NavbarProps) {
+export default function Navbar({ user, onLogin, onLogout, onVipClick, onBotClick, onReviewsClick, isAdmin, isVip }: NavbarProps) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
-  const { permission, requestPermission, token, loading } = usePushNotifications();
 
   useEffect(() => {
-    const handlePrompt = (e: any) => {
+    const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstallBtn(true);
     };
 
-    const handleInstalled = () => {
-      setDeferredPrompt(null);
-      setShowInstallBtn(false);
-    };
+    window.addEventListener('beforeinstallprompt', handler);
 
-    window.addEventListener('beforeinstallprompt', handlePrompt);
-    window.addEventListener('appinstalled', handleInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handlePrompt);
-      window.removeEventListener('appinstalled', handleInstalled);
-    };
+    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
   const handleInstall = async () => {
-    if (deferredPrompt) {
-      try {
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response to install prompt: ${outcome}`);
-        setDeferredPrompt(null);
-        setShowInstallBtn(false);
-      } catch (err) {
-        console.error("Installation failed:", err);
+    if (!deferredPrompt) {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        alert("IPHONE INSTALLATION:\n1. Open this page in Safari\n2. Tap the Share button (square with arrow)\n3. Scroll down and tap 'Add to Home Screen'");
+      } else {
+        alert("INSTALLATION GUIDE:\n1. Click the Browser Menu (3 dots)\n2. Select 'Install' or 'Add to Home Screen'\n\nThis turns Dark Trading into a fast, standalone app.");
       }
       return;
     }
-
-    onDownloadClick();
-  };
-
-  const handleToggleNotifications = async () => {
-    if (!user) {
-      alert("LOGIN REQUIRED\n\nPlease sign in to activate trader alerts. We need to sync notifications with your account profile.");
-      return;
-    }
-    const vapidKey = import.meta.env.VITE_VAPID_KEY;
-    if (!vapidKey) {
-      await requestPermission();
-      return;
-    }
-    await requestPermission(vapidKey);
-  };
-
-  const handleCopyToken = () => {
-    if (token) {
-      navigator.clipboard.writeText(token);
-      alert("Push Token Copied! Use this in Firebase Console -> Messaging -> Send Test Message.");
-    }
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
   };
 
   return (
     <nav className="border-b border-white/5 bg-black/50 backdrop-blur-md sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 cursor-pointer group flex-shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-2 cursor-pointer group" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
           <div className="w-10 h-10 rounded-xl bg-red-600 flex items-center justify-center shadow-lg shadow-red-600/30 group-hover:scale-110 transition-transform">
             <Zap className="text-white fill-white" size={24} />
           </div>
-          <div className="hidden sm:flex flex-col">
+          <div className="flex flex-col">
             <h1 className="text-xl font-black italic tracking-tighter leading-none mb-0.5">DARK TRADING</h1>
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-mono font-bold tracking-[0.4em] text-red-500 uppercase leading-none">Global Network</span>
-              {session?.isActive && (
-                <span className="flex items-center gap-1 bg-green-500/10 text-green-500 border border-green-500/30 px-1 py-0.5 rounded-[2px] text-[7px] font-black uppercase tracking-widest animate-pulse">
-                  <div className="w-1 h-1 rounded-full bg-green-500" />
-                  Live
-                </span>
-              )}
-            </div>
+            <span className="text-[9px] font-mono font-bold tracking-[0.4em] text-red-500 uppercase leading-none">Global Network</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-6">
-          <div className="flex items-center gap-2 sm:gap-4 overflow-hidden">
-            <div className="flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 relative">
-              {!user && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-black animate-pulse z-10" />
-              )}
-              <button 
-                onClick={handleToggleNotifications}
-                disabled={loading}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${
-                  loading ? 'opacity-50 cursor-wait' : ''
-                } ${
-                  permission === 'granted' 
-                    ? 'text-green-500 hover:bg-green-500/10' 
-                    : permission === 'denied'
-                      ? 'text-red-500 hover:bg-red-500/10'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5 animate-pulse'
-                }`}
-                title={user ? `Notifications: ${permission.toUpperCase()}` : "Sign in to activate alerts"}
-              >
-                {permission === 'granted' ? <Bell size={16} /> : <BellOff size={16} />}
-                <span className="text-[10px] font-black uppercase hidden lg:inline-block">
-                  {permission === 'granted' ? 'Active' : 'Alerts'}
-                </span>
-              </button>
-              {permission === 'granted' && (
-                <button 
-                  onClick={token ? handleCopyToken : handleToggleNotifications}
-                  className={`ml-1 px-3 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all border ${
-                    token 
-                      ? 'bg-blue-600 border-blue-400/30 text-white hover:bg-blue-700' 
-                      : 'bg-red-600 border-red-400/30 text-white hover:bg-red-700 animate-bounce'
-                  }`}
-                  title={token ? "Click to copy registration token" : "Token missing - click to retry generation"}
-                >
-                  {token ? 'Copy' : 'Sync'}
-                </button>
-              )}
-            </div>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <button 
               onClick={handleInstall}
-              className={`flex items-center gap-1.5 px-3 py-1.5 border rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex-shrink-0 ${
-                showInstallBtn 
-                  ? 'bg-red-600 border-red-400/30 text-white hover:bg-red-700 shadow-red-600/20 animate-bounce' 
-                  : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
-              }`}
-              title={showInstallBtn ? "Install Native App" : "App Installation Instructions"}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 border border-red-400/30 rounded text-[10px] font-black uppercase tracking-widest text-white hover:bg-red-700 transition-all shadow-lg shadow-red-600/20 animate-pulse"
+              title="Download Desktop/Mobile App"
             >
               <Download size={14} />
-              <span className="hidden xs:inline-block">{showInstallBtn ? 'Install Now' : 'Get App'}</span>
+              <span>Download App</span>
             </button>
             <button 
               onClick={onReviewsClick}
-              className="hidden lg:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors flex-shrink-0"
+              className="hidden md:block text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white transition-colors"
             >
               Reviews
             </button>

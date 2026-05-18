@@ -17,33 +17,10 @@
     background-color: #050505;
     color: #ffffff;
     font-family: var(--font-sans);
-    -webkit-tap-highlight-color: transparent;
-    user-select: none;
-    touch-action: manipulation;
-    overflow-x: hidden;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    -webkit-text-size-adjust: none;
-    -moz-text-size-adjust: none;
-    text-size-adjust: none;
-    overscroll-behavior: none;
-  }
-  
-  input, textarea {
-    user-select: text;
   }
 }
 
 @layer components {
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
   .glass-panel {
     background: rgba(255, 255, 255, 0.03);
     backdrop-filter: blur(12px);

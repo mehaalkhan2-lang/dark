@@ -28,11 +28,8 @@ export default function SupportAssistant() {
   const SUGGESTIONS = [
     "How to activate bot?",
     "What are VIP signals?",
-    "EasyPaisa Payment info?",
-    "Minimum deposit?",
-    "Is this real profit?",
-    "How to join VIP?",
-    "Daily targets?"
+    "How to join?",
+    "Show me reviews"
   ];
 
   useEffect(() => {
@@ -204,13 +201,13 @@ export default function SupportAssistant() {
                     </div>
                   )}
 
-                  {!isTyping && messages.length < 4 && (
-                    <div className="flex flex-wrap gap-2 pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                  {!isTyping && messages.length === 1 && (
+                    <div className="flex flex-wrap gap-2 pt-2">
                       {SUGGESTIONS.map((s) => (
                         <button
                           key={s}
                           onClick={() => handleSend(s)}
-                          className="bg-red-600/10 border border-red-600/20 hover:bg-red-700 hover:text-white text-red-500 text-[9px] py-1.5 px-3 rounded-full transition-all uppercase font-black whitespace-nowrap"
+                          className="bg-red-600/10 border border-red-600/20 hover:bg-red-600/20 text-red-500 text-[10px] py-1 px-3 rounded-full transition-all uppercase font-black"
                         >
                           {s}
                         </button>

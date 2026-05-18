@@ -14,7 +14,6 @@ export interface Signal {
   direction?: TradeDirection;
   entryPrice?: string;
   expiry: number; // timestamp
-  activatedAt?: number; // timestamp when it went active
   durationMinutes: number;
   type: "public" | "vip";
   status: SignalStatus;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { GoogleGenAI } from "@google/genai";
 import { 
   Cpu, 
   Activity, 
@@ -24,21 +25,9 @@ interface SignalsBotPortalProps {
   isVip: boolean;
   isAdmin: boolean;
   isBotUser: boolean;
-  session?: any;
-  settings?: {
-    botPrice: number;
-    discountPercentage: number;
-  };
 }
 
 const INTEGRATED_BROKER = { id: 'pocket', name: 'Pocket Option', icon: 'P', color: 'text-red-500' };
-
-const MARKET_VITALS = [
-  { label: 'Volatility', value: 'High', color: 'text-red-500', icon: Zap },
-  { label: 'Liquidity', value: '0.8M/s', color: 'text-green-500', icon: Activity },
-  { label: 'Trend Strength', value: '78%', color: 'text-blue-500', icon: TrendingUp },
-  { label: 'Market Sentiment', value: '62% Bullish', color: 'text-yellow-500', icon: BarChart3 }
-];
 
 const ASSETS = [
   { id: 'EURUSD', name: 'Euro / USD', symbol: 'FX:EURUSD' },
@@ -54,12 +43,8 @@ const ASSETS = [
   { id: 'EURAUD', name: 'EUR / AUD', symbol: 'FX:EURAUD' },
 ];
 
-export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, settings }: SignalsBotPortalProps) {
+export default function SignalsBotPortal({ isVip, isAdmin, isBotUser }: SignalsBotPortalProps) {
   const selectedBroker = INTEGRATED_BROKER;
-  const botPrice = settings?.botPrice || 1000;
-  const discount = settings?.discountPercentage || 0;
-  const finalPrice = Math.floor(botPrice * (1 - discount / 100));
-
   const [isOtc, setIsOtc] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState(ASSETS[0]);
   const [isScanning, setIsScanning] = useState(false);
@@ -84,11 +69,11 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
     // TradingView Widget initialization
     if (!(isBotUser || isAdmin)) return;
 
-    const scriptId = 'tradingview-widget-script';
-    let script = document.getElementById(scriptId) as HTMLScriptElement;
-
-    const initWidget = () => {
-      if (document.getElementById('tradingview_chart') && (window as any).TradingView) {
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/tv.js';
+    script.async = true;
+    script.onload = () => {
+      if (document.getElementById('tradingview_chart')) {
         new (window as any).TradingView.widget({
           "autosize": true,
           "symbol": selectedAsset.symbol,
@@ -105,32 +90,12 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
         });
       }
     };
-
-    if (!script) {
-      script = document.createElement('script');
-      script.id = scriptId;
-      script.src = 'https://s3.tradingview.com/tv.js';
-      script.async = true;
-      script.onload = initWidget;
-      document.head.appendChild(script);
-    } else {
-      // Script already exists, check if TradingView is ready
-      if ((window as any).TradingView) {
-        initWidget();
-      } else {
-        script.onload = initWidget;
-      }
-    }
-
+    document.head.appendChild(script);
     addLog(`System established handshake with ${selectedBroker.name} API...`);
     addLog(`Subscribing to ${selectedAsset.id} ticker...`);
 
     return () => {
-      // Logic for cleaning up the widget instance
-      const container = document.getElementById('tradingview_chart');
-      if (container) {
-        container.innerHTML = '';
-      }
+      // Cleanup if needed
     };
   }, [selectedAsset, selectedBroker, isBotUser, isAdmin]);
 
@@ -148,25 +113,47 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
     addLog(`Running Neural Scan on ${selectedAsset.id}...`);
     
     try {
-      addLog(`Extracting ${selectedBroker.name} session vitals...`);
-      await new Promise(r => setTimeout(r, 600));
-      addLog(`Syncing with Interbank Liquidity Pools...`);
-      await new Promise(r => setTimeout(r, 1000));
-      addLog("Analyzing Order Flow Imbalance...");
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
-      const response = await fetch('/api/bot/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          asset: selectedAsset.name,
-          symbol: selectedAsset.symbol,
-          isOtc,
-          brokerName: selectedBroker.name
-        })
+      addLog(`Extracting ${selectedBroker.name} liquidity pools...`);
+      await new Promise(r => setTimeout(r, 1000));
+      addLog("Calculating RSI/MACD divergence...");
+      await new Promise(r => setTimeout(r, 800));
+      addLog("Analyzing order flow sentiment...");
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Perform a deep technical multi-timeframe analysis for ${selectedAsset.name} (${selectedAsset.symbol}). 
+        Context: ${selectedBroker.name} Platform ${isOtc ? '(OTC Algorithmic Market)' : '(Interbank Global Feed)'}.
+        Focus on 1-MINUTE EXPIRATION parameters:
+        - 1-Minute Micro-trend and momentum divergence (RSI 7 period, Stochastic 5-3-3).
+        - Fibonacci retracement levels (0.382, 0.5, 0.618) on the M1 cycle.
+        - Support/Resistance liquidy pools on the 5-minute chart for high-level bias.
+        - VWAP and EMA 20/50/100 crossovers.
+        - Candle patterns: Pin bars, Engulfing, Marubozu at key levels.
+
+        Provide: 
+        1. Direction (CALL/PUT)
+        2. Confidence level (0-100%)
+        3. Detailed technical reasoning (Deeply technical summary)
+        4. Target Price Projection (Precise for 1-minute expiration)`,
+        config: {
+            systemInstruction: `You are an elite quantitative analyst bot for ${selectedBroker.name}. ${isOtc ? 'Monitor OTC algorithmic patterns and price spikes.' : 'Analyze institutional order flow and macro-economic correlations.'} Your signals must be highly precise and deeply descriptive.`,
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "OBJECT",
+                properties: {
+                    direction: { type: "STRING" },
+                    confidence: { type: "NUMBER" },
+                    reason: { type: "STRING" },
+                    target: { type: "STRING" }
+                },
+                required: ["direction", "confidence", "reason", "target"]
+            }
+        }
       });
 
-      if (!response.ok) throw new Error("API process failure");
-      const result = await response.json();
+      const result = JSON.parse(response.text || "{}");
       setAnalysis(result);
       addLog(`Analysis complete. Signal: ${result.direction}`);
     } catch (err: any) {
@@ -194,12 +181,14 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
     addLog("Uplinking screenshot to Assistant Bot...");
     
     try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
       // Save purchase attempt for admin review
       if (auth.currentUser) {
         addDoc(collection(db, 'bot_activations'), {
           userId: auth.currentUser.uid,
           userEmail: auth.currentUser.email,
-          amount: finalPrice,
+          amount: 1000,
           currency: 'PKR',
           method: 'EasyPaisa',
           recipient: 'Hijran Bano',
@@ -215,17 +204,51 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
       });
       const base64Data = await base64Promise;
 
-      const response = await fetch('/api/bot/verify-purchase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          base64Data,
-          mimeType: proofImage.type
-        })
+      const prompt = `Analyze this transaction screenshot. 
+      Verify the following payment details:
+      - Recipient Number: 03451959533
+      - Recipient Name: Hijran Bano (accept minor variations like Hijra Bano)
+      - Amount: 1000 PKR
+      - Status: Must be Successful / Sent / Paid / Completed
+      
+      Extract the Transaction ID, the exact amount found, and the recipient name found.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: proofImage.type
+              }
+            },
+            {
+              text: prompt
+            }
+          ]
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              isValid: { 
+                type: "BOOLEAN",
+                description: "True if recipient number, name (Hijran Bano), and amount (1000 PKR) match perfectly and status is successful."
+              },
+              transactionId: { type: "STRING" },
+              amountDetected: { type: "STRING" },
+              recipientDetected: { type: "STRING" },
+              reason: { type: "STRING", description: "If invalid, explain why (e.g. 'Wrong amount', 'Recipient name mismatch', 'Screenshot of pending status')" }
+            },
+            required: ["isValid", "transactionId", "amountDetected", "recipientDetected", "reason"]
+          }
+        }
       });
 
-      if (!response.ok) throw new Error("Verification service issue");
-      const result = await response.json();
+      const text = response.text || "{}";
+      const result = JSON.parse(text);
       
       if (result.isValid) {
         addLog(`Assistant Bot: Transaction ${result.transactionId} VERIFIED.`);
@@ -271,7 +294,7 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
               Dark trading bot
               {!isBotUser && !isAdmin && (
                 <span className="flex items-center gap-1 bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded border border-yellow-500/20 text-[9px] tracking-widest">
-                  <Shield size={10} /> {discount > 0 && <span className="line-through opacity-50 mr-1">{botPrice}</span>}{finalPrice} PKR
+                  <Shield size={10} /> 1000 PKR
                 </span>
               )}
             </h2>
@@ -314,7 +337,7 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
             ) : (!isBotUser && !isAdmin) ? (
               <>
                 <Shield size={14} />
-                ACTIVATE BOT ({finalPrice} PKR)
+                ACTIVATE BOT (1000 PKR)
               </>
             ) : (
               <>
@@ -343,14 +366,6 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
                       <span className="text-[8px] bg-red-500 text-white px-1 rounded-sm leading-tight font-black">1M</span>
                     </div>
                     <span className="text-[8px] font-mono text-gray-500 leading-none">REAL-TIME {selectedBroker.name.toUpperCase()} FEED</span>
-                    {/* Add session status here if needed */}
-                  </div>
-                </div>
-
-                <div className="absolute top-4 right-4 flex items-center gap-2 pointer-events-none">
-                  <div className={`px-2 py-1 rounded border text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 backdrop-blur-md ${session?.isActive ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}>
-                    <div className={`w-1 h-1 rounded-full ${session?.isActive ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-                    {session?.isActive ? 'Global Session: LIVE' : 'Global Session: CLOSED'}
                   </div>
                 </div>
 
@@ -382,14 +397,9 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
                   </div>
                 </div>
                 <h3 className="text-lg font-black text-white uppercase tracking-tighter mb-2">Market Scanner Locked</h3>
-                <p className="text-[10px] text-gray-500 font-mono max-w-xs text-center leading-relaxed mb-4">
+                <p className="text-[10px] text-gray-500 font-mono max-w-xs text-center leading-relaxed">
                   The high-frequency real-time feed requires an active Bot License. Activate your bot to unlock the technical terminal.
                 </p>
-                <div className="bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-lg mb-6">
-                   <p className="text-[8px] font-black text-red-500 uppercase tracking-widest">
-                     "Fortune favors the bold. Cowards never enter the trade."
-                   </p>
-                </div>
                 <div className="mt-8 flex gap-3">
                   <div className="h-[1px] w-12 bg-white/10 self-center" />
                   <span className="text-[10px] font-black text-yellow-500 uppercase tracking-widest">Upgrade to Access</span>
@@ -398,23 +408,6 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
               </div>
             )}
           </div>
-
-          {/* Market Vitals Grid */}
-          {(isBotUser || isAdmin) && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {MARKET_VITALS.map((vital, idx) => (
-                <div key={idx} className="glass-panel p-3 border-white/5 bg-white/[0.02] flex items-center gap-3">
-                  <div className={`p-2 rounded bg-black/40 border border-white/5 ${vital.color}`}>
-                    <vital.icon size={14} />
-                  </div>
-                  <div>
-                    <span className="text-[8px] text-gray-500 uppercase font-mono block leading-none mb-1">{vital.label}</span>
-                    <span className="text-[10px] font-black text-white tracking-widest">{vital.value}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
           <div className="glass-panel p-4 border-white/5 flex items-center justify-between text-[10px] font-mono text-gray-500">
             <div className="flex items-center gap-6">
@@ -435,12 +428,9 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
         {/* Sidebar / Analysis Output */}
         <div className="lg:col-span-1 space-y-4">
           <div className="glass-panel p-5 border-white/5 h-full flex flex-col">
-            <div className="flex items-center gap-2 mb-6 text-xs font-bold text-white uppercase tracking-widest justify-between">
-              <div className="flex items-center gap-2">
-                <Terminal size={14} className="text-gray-400" />
-                Bot Output
-              </div>
-              <span className="text-[7px] text-red-500 font-black animate-pulse">IF YOU AREN'T BRAVE, DON'T TRADE</span>
+            <div className="flex items-center gap-2 mb-6 text-xs font-bold text-white uppercase tracking-widest">
+              <Terminal size={14} className="text-gray-400" />
+              Bot Output
             </div>
 
             <div className="flex-1 space-y-4">
@@ -460,10 +450,7 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
                       <div className="p-3 bg-black/40 rounded border border-white/5 space-y-2">
                         <div className="flex justify-between text-[10px] font-black text-white uppercase">
                           <span>License Fee</span>
-                          <div className="text-right">
-                            {discount > 0 && <span className="text-[8px] line-through opacity-50 mr-2">{botPrice} PKR</span>}
-                            <span className="text-yellow-500">{finalPrice} PKR</span>
-                          </div>
+                          <span className="text-yellow-500">1000 PKR</span>
                         </div>
                         <div className="h-[1px] bg-white/5" />
                         <div className="space-y-1">
@@ -529,7 +516,7 @@ export default function SignalsBotPortal({ isVip, isAdmin, isBotUser, session, s
                       <div className="w-12 h-12 rounded-full border-2 border-yellow-500 border-t-transparent animate-spin mx-auto mb-4" />
                       <h4 className="text-xs font-black text-white uppercase tracking-widest">Assistant Bot Examining Proof</h4>
                       <p className="text-[9px] text-gray-500 font-mono leading-relaxed">
-                        The AI is currently scanning your screenshot to verify the Transaction ID, Recipient (Hijran Bano), and Amount ({finalPrice} PKR). Do not close this panel.
+                        The AI is currently scanning your screenshot to verify the Transaction ID, Recipient (Hijran Bano), and Amount (1000 PKR). Do not close this panel.
                       </p>
                     </div>
                   )}

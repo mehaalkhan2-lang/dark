@@ -45,58 +45,10 @@ service cloud.firestore {
              data.type in ['public', 'vip'] &&
              data.status in ['pending', 'active', 'win', 'loss', 'expired'] &&
              (isCreate ? data.createdAt == request.time : data.createdAt == resource.data.createdAt) &&
-             (isCreate ? data.authorId == request.auth.uid : data.authorId == resource.data.authorId);
-    }
-
-    function isValidReview(data) {
-      return data.keys().hasAll(['username', 'imageUrl', 'createdAt']) &&
-             data.username is string && data.username.size() <= 50 &&
-             data.imageUrl is string && data.imageUrl.size() <= 1000 &&
-             (!('comment' in data) || (data.comment is string && data.comment.size() <= 500)) &&
-             (!('profitAmount' in data) || (data.profitAmount is string && data.profitAmount.size() <= 50)) &&
-             data.createdAt is timestamp;
-    }
-
-    function isValidSession(data) {
-      return data.keys().hasAll(['isActive']) &&
-             data.isActive is bool &&
-             (!('startedAt' in data) || (data.startedAt is timestamp || data.startedAt == null)) &&
-             (!('closedAt' in data) || (data.closedAt is timestamp || data.closedAt == null)) &&
-             (!('lastStatus' in data) || (data.lastStatus is string && data.lastStatus.size() <= 20));
-    }
-
-    function isValidPushToken(data) {
-      return data.keys().hasAll(['token', 'updatedAt', 'active']) &&
-             data.keys().size() >= 3 && data.keys().size() <= 4 &&
-             data.token is string && data.token.size() <= 512 &&
-             data.updatedAt == request.time &&
-             data.active is bool &&
-             (!('platform' in data) || (data.platform is string && data.platform.size() <= 100));
-    }
-
-    function isValidSettings(data) {
-      return (data.botPrice is number || !('botPrice' in data)) &&
-             (data.discountPercentage is number || !('discountPercentage' in data)) &&
-             (data.fakeMemberOffset is number || !('fakeMemberOffset' in data));
+             data.authorId == request.auth.uid;
     }
 
     // --- Collection Rules ---
-
-    match /system/trading_session {
-      allow read: if true;
-      allow write: if isAdmin() && isValidSession(incoming());
-    }
-
-    match /system/settings {
-      allow read: if true;
-      allow write: if isAdmin() && isValidSettings(incoming());
-    }
-
-    match /push_tokens/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow list: if isAdmin();
-      allow write: if isSignedIn() && request.auth.uid == userId && isValidPushToken(incoming());
-    }
 
     match /signals/{signalId} {
       // Public signals can be listed by anyone.
@@ -153,7 +105,7 @@ service cloud.firestore {
 
     match /reviews/{reviewId} {
       allow read: if true;
-      allow write: if isAdmin() && isValidReview(incoming());
+      allow write: if isAdmin();
     }
   }
 }

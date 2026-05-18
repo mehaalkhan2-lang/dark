@@ -75,40 +75,6 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["username", "imageUrl", "createdAt"]
-    },
-    "TradingSession": {
-      "title": "Trading Session",
-      "description": "The current global trading status.",
-      "type": "object",
-      "properties": {
-        "isActive": { "type": "boolean" },
-        "startedAt": { "type": "string", "format": "date-time" },
-        "closedAt": { "type": "string", "format": "date-time" },
-        "lastStatus": { "type": "string" }
-      },
-      "required": ["isActive"]
-    },
-    "PushToken": {
-      "title": "Push Token",
-      "description": "Cloud Messaging registration token for a user.",
-      "type": "object",
-      "properties": {
-        "token": { "type": "string" },
-        "updatedAt": { "type": "string", "format": "date-time" },
-        "active": { "type": "boolean" },
-        "platform": { "type": "string" }
-      },
-      "required": ["token", "updatedAt", "active"]
-    },
-    "Settings": {
-      "title": "System Settings",
-      "description": "Global configuration for the platform.",
-      "type": "object",
-      "properties": {
-        "botPrice": { "type": "number" },
-        "discountPercentage": { "type": "number" },
-        "fakeMemberOffset": { "type": "number" }
-      }
     }
   },
   "firestore": {
@@ -135,18 +101,6 @@
     "/bot_access/{userId}": {
       "schema": "BotAccess",
       "description": "Granted bot licenses."
-    },
-    "/system/trading_session": {
-      "schema": "TradingSession",
-      "description": "Global session state tracking."
-    },
-    "/system/settings": {
-      "schema": "Settings",
-      "description": "Global price and display configurations."
-    },
-    "/push_tokens/{userId}": {
-      "schema": "PushToken",
-      "description": "FCM tokens for push notifications."
     }
   }
 }
